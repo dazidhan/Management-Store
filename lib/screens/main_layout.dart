@@ -97,7 +97,7 @@ class _MainLayoutState extends State<MainLayout> {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  const Text("TokoKu", style: TextStyle(fontSize: 18)),
+                  const Text("Kasirly", style: TextStyle(fontSize: 18)),
                 ],
               ),
               actions: [
