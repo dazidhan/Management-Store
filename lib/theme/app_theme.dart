@@ -2,39 +2,49 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppColors {
-  static const Color background = Color(0xFF0F1419);
-  static const Color surface = Color(0xFF1A2332);
-  static const Color border = Color(0xFF2D3748);
-  static const Color primary = Color(0xFF10B981);
-  static const Color secondary = Color(0xFF1F2937);
-  static const Color textPrimary = Colors.white;
-  static const Color textSecondary = Color(0xFF9CA3AF);
-  static const Color danger = Color(0xFFEF4444);
-  static const Color success = Color(0xFF10B981);
-  static const Color warning = Color(0xFFF59E0B);
+  // Color Palette Kasirly
+  static const Color primary = Color(0xFF0F766E); // Teal dark
+  static const Color secondary = Color(0xFF14B8A6); // Teal bright
+  static const Color accent = Color(0xFF22C55E); // Profit/Green
+  static const Color warning = Color(0xFFEF4444); // Expense/Red
+  static const Color background = Color(0xFFF8FAFC); // Light grey
+  static const Color textPrimary = Color(0xFF0F172A); // Dark blue/black
+  static const Color textSecondary = Color(0xFF64748B); // Medium blue-grey
+  
+  // Additional colors for UI
+  static const Color surface = Colors.white;
+  static const Color border = Color(0xFFE2E8F0);
+  static const Color danger = warning;
+  static const Color success = accent;
   static const Color info = Color(0xFF3B82F6);
 }
 
 ThemeData getAppTheme() {
   return ThemeData(
     useMaterial3: true,
-    brightness: Brightness.dark,
+    brightness: Brightness.light,
     scaffoldBackgroundColor: AppColors.background,
     primaryColor: AppColors.primary,
     fontFamily: GoogleFonts.plusJakartaSans().fontFamily,
-    colorScheme: const ColorScheme.dark(
+    colorScheme: const ColorScheme.light(
       primary: AppColors.primary,
+      secondary: AppColors.secondary,
       surface: AppColors.surface,
       background: AppColors.background,
-      secondary: AppColors.primary,
+      error: AppColors.warning,
+      onPrimary: Colors.white,
+      onSecondary: Colors.white,
+      onSurface: AppColors.textPrimary,
+      onBackground: AppColors.textPrimary,
+      onError: Colors.white,
     ),
     appBarTheme: const AppBarTheme(
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.primary,
       elevation: 0,
       scrolledUnderElevation: 0,
-      iconTheme: IconThemeData(color: AppColors.textPrimary),
+      iconTheme: IconThemeData(color: Colors.white),
       titleTextStyle: TextStyle(
-        color: AppColors.textPrimary,
+        color: Colors.white,
         fontWeight: FontWeight.bold,
         fontSize: 18,
       ),
@@ -45,6 +55,37 @@ ThemeData getAppTheme() {
       unselectedItemColor: AppColors.textSecondary,
       type: BottomNavigationBarType.fixed,
       showUnselectedLabels: true,
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: AppColors.surface,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.border),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.border),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.primary, width: 2),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.warning),
+      ),
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
     ),
   );
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../services/auth_service.dart';
 import 'dashboard_screen.dart';
 import 'kasir_screen.dart';
 import 'stock_screen.dart';
@@ -14,6 +15,7 @@ class MainLayout extends StatefulWidget {
 
 class _MainLayoutState extends State<MainLayout> {
   int _selectedIndex = 0;
+  final _authService = AuthService();
 
   final List<Widget> _pages = [
     const DashboardScreen(),
@@ -46,16 +48,29 @@ class _MainLayoutState extends State<MainLayout> {
             ),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context); // Tutup dialog
-              // LOGIC LOGOUT DISINI
-              // Contoh: Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()));
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text("Berhasil Logout (Simulasi)"),
-                  backgroundColor: AppColors.success,
-                ),
-              );
+              try {
+                await _authService.signOut();
+                // Navigation will be handled by AuthGate
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("Berhasil Logout"),
+                      backgroundColor: AppColors.success,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text("Gagal logout: ${e.toString()}"),
+                      backgroundColor: AppColors.warning,
+                    ),
+                  );
+                }
+              }
             },
             child: const Text(
               "Keluar",
@@ -106,7 +121,7 @@ class _MainLayoutState extends State<MainLayout> {
                   onPressed: _showLogoutDialog, // Panggil fungsi dialog
                   icon: const Icon(
                     Icons.logout_rounded,
-                    color: AppColors.textSecondary,
+                    color: AppColors.warning,
                   ),
                   tooltip: 'Keluar',
                 ),

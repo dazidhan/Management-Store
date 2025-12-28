@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../theme/app_theme.dart';
-import '../models/dummy_data.dart';
+import '../services/database_service.dart';
 
 class StockScreen extends StatefulWidget {
   const StockScreen({super.key});
@@ -13,6 +14,7 @@ class StockScreen extends StatefulWidget {
 class _StockScreenState extends State<StockScreen> {
   String _searchQuery = '';
   final _formKey = GlobalKey<FormState>();
+  final _databaseService = DatabaseService();
 
   // Controllers untuk Form
   final _skuController = TextEditingController();
@@ -20,6 +22,7 @@ class _StockScreenState extends State<StockScreen> {
   final _priceController = TextEditingController();
   final _stockController = TextEditingController();
   final _minStockController = TextEditingController(text: '10');
+  final _barcodeController = TextEditingController();
   String _selectedCategory = 'Makanan';
 
   // ID produk yang sedang diedit (null jika mode tambah baru)
@@ -34,121 +37,216 @@ class _StockScreenState extends State<StockScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Filter produk berdasarkan search
-    final filteredProducts = dummyProducts.where((p) {
-      return p.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          p.sku.toLowerCase().contains(_searchQuery.toLowerCase());
-    }).toList();
-
     return Scaffold(
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      body: Column(
+        children: [
+          // Header & Search
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      "Manajemen Stok",
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Manajemen Stok",
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        StreamBuilder<QuerySnapshot>(
+                          stream: _databaseService.getProducts(),
+                          builder: (context, snapshot) {
+                            if (snapshot.hasData) {
+                              final count = snapshot.data!.docs.length;
+                              return Text(
+                                "$count produk",
+                                style: const TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 12,
+                                ),
+                              );
+                            }
+                            return const Text(
+                              "0 produk",
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 12,
+                              ),
+                            );
+                          },
+                        ),
+                      ],
                     ),
-                    Text(
-                      "${filteredProducts.length} produk",
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 12,
+                    InkWell(
+                      onTap: () => _showProductForm(null),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 4,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(Icons.add, color: Colors.white),
                       ),
                     ),
                   ],
                 ),
-                // Tombol Tambah Baru
-                InkWell(
-                  onTap: () =>
-                      _showProductForm(null), // Null artinya mode tambah
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Colors.black26,
-                          blurRadius: 4,
-                          offset: Offset(0, 2),
-                        ),
-                      ],
+                const SizedBox(height: 16),
+                TextField(
+                  onChanged: (value) => setState(() => _searchQuery = value),
+                  decoration: InputDecoration(
+                    hintText: 'Cari nama atau SKU...',
+                    prefixIcon: const Icon(
+                      Icons.search,
+                      color: AppColors.textSecondary,
                     ),
-                    child: const Icon(Icons.add, color: Colors.white),
+                    filled: true,
+                    fillColor: AppColors.surface,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      vertical: 0,
+                      horizontal: 16,
+                    ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+          ),
 
-            // Search Bar
-            TextField(
-              onChanged: (value) => setState(() => _searchQuery = value),
-              decoration: InputDecoration(
-                hintText: 'Cari nama atau SKU...',
-                prefixIcon: const Icon(
-                  Icons.search,
-                  color: AppColors.textSecondary,
-                ),
-                filled: true,
-                fillColor: AppColors.surface,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  vertical: 0,
-                  horizontal: 16,
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
+          // Product List (Dynamic from Firestore)
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: _databaseService.getProducts(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-            // Stock List (Tampilan Baru)
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: filteredProducts.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                return _buildStockCard(filteredProducts[index]);
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text('Error: ${snapshot.error}'),
+                  );
+                }
+
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return _buildEmptyState();
+                }
+
+                // Filter products
+                final allProducts = snapshot.data!.docs;
+                final filteredProducts = allProducts.where((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final name = (data['name'] as String? ?? '').toLowerCase();
+                  final sku = (data['sku'] as String? ?? '').toLowerCase();
+                  final query = _searchQuery.toLowerCase();
+                  return name.contains(query) || sku.contains(query);
+                }).toList();
+
+                if (filteredProducts.isEmpty) {
+                  return Center(
+                    child: Text(
+                      'Tidak ada produk yang cocok',
+                      style: TextStyle(color: AppColors.textSecondary),
+                    ),
+                  );
+                }
+
+                return ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),
+                  itemCount: filteredProducts.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (context, index) {
+                    final doc = filteredProducts[index];
+                    return _buildStockCard(doc.id, doc.data() as Map<String, dynamic>);
+                  },
+                );
               },
             ),
-            const SizedBox(height: 80), // Space for bottom nav
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.inventory_2_outlined,
+              size: 80,
+              color: AppColors.textSecondary.withOpacity(0.5),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Belum ada barang',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Tambahkan produk pertama Anda',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () => _showProductForm(null),
+              icon: const Icon(Icons.add),
+              label: const Text('Tambah Barang'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  // --- WIDGET KARTU STOK BARU (Sesuai Gambar) ---
-  Widget _buildStockCard(Product product) {
-    bool isLowStock = product.stock <= product.minStock;
+  Widget _buildStockCard(String productId, Map<String, dynamic> data) {
+    final name = data['name'] as String? ?? '';
+    final sku = data['sku'] as String? ?? '';
+    final category = data['category'] as String? ?? '';
+    final price = (data['price'] as num?)?.toDouble() ?? 0.0;
+    final stock = (data['stock'] as int?) ?? 0;
+    final minStock = (data['minStock'] as int?) ?? 0;
+    final isLowStock = stock <= minStock;
 
     return GestureDetector(
-      onTap: () {
-        _showProductForm(product); // Buka modal edit saat diklik
-      },
+      onTap: () => _showProductForm(productId, data),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.surface, // bg-card
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border), // border-border
+          border: Border.all(color: AppColors.border),
           boxShadow: const [
             BoxShadow(
               color: Colors.black12,
@@ -159,41 +257,38 @@ class _StockScreenState extends State<StockScreen> {
         ),
         child: Row(
           children: [
-            // 1. Icon Box (Sesuai Kategori)
             Container(
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: AppColors.secondary, // bg-secondary
+                color: AppColors.secondary,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Center(
                 child: Text(
-                  _getCategoryIcon(product.category),
+                  _getCategoryIcon(category),
                   style: const TextStyle(fontSize: 24),
                 ),
               ),
             ),
             const SizedBox(width: 12),
-
-            // 2. Info Produk
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    product.name,
+                    name,
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
-                      color: Colors.white,
+                      color: AppColors.textPrimary,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    "SKU: ${product.sku} • ${product.category}",
+                    "SKU: $sku • $category",
                     style: const TextStyle(
                       fontSize: 11,
                       color: AppColors.textSecondary,
@@ -201,39 +296,35 @@ class _StockScreenState extends State<StockScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    _currencyFormat.format(product.price),
+                    _currencyFormat.format(price),
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.primary, // text-primary
+                      color: AppColors.primary,
                     ),
                   ),
                 ],
               ),
             ),
-
-            // 3. Status Stok & Edit
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  "${product.stock}",
+                  "$stock",
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    // text-destructive if low, else text-white
-                    color: isLowStock ? AppColors.danger : Colors.white,
+                    color: isLowStock ? AppColors.danger : AppColors.textPrimary,
                   ),
                 ),
                 Text(
-                  "Min: ${product.minStock}",
+                  "Min: $minStock",
                   style: const TextStyle(
                     fontSize: 10,
                     color: AppColors.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 4),
-                // Indikator Edit (Visual saja)
                 const Text(
                   "Edit >",
                   style: TextStyle(
@@ -256,17 +347,16 @@ class _StockScreenState extends State<StockScreen> {
     return '📦';
   }
 
-  // --- MODAL FORM (BISA UNTUK TAMBAH & EDIT) ---
-  void _showProductForm(Product? product) {
-    // Reset atau Isi Controller
-    if (product != null) {
-      _editingProductId = product.id;
-      _skuController.text = product.sku;
-      _nameController.text = product.name;
-      _priceController.text = product.price.toStringAsFixed(0);
-      _stockController.text = product.stock.toString();
-      _minStockController.text = product.minStock.toString();
-      _selectedCategory = product.category;
+  void _showProductForm(String? productId, [Map<String, dynamic>? productData]) {
+    if (productData != null) {
+      _editingProductId = productId;
+      _skuController.text = productData['sku'] as String? ?? '';
+      _nameController.text = productData['name'] as String? ?? '';
+      _priceController.text = (productData['price'] as num?)?.toStringAsFixed(0) ?? '';
+      _stockController.text = (productData['stock'] as int?)?.toString() ?? '';
+      _minStockController.text = (productData['minStock'] as int?)?.toString() ?? '10';
+      _barcodeController.text = productData['barcode'] as String? ?? '';
+      _selectedCategory = productData['category'] as String? ?? 'Makanan';
     } else {
       _editingProductId = null;
       _skuController.clear();
@@ -274,6 +364,7 @@ class _StockScreenState extends State<StockScreen> {
       _priceController.clear();
       _stockController.clear();
       _minStockController.text = '10';
+      _barcodeController.clear();
       _selectedCategory = 'Makanan';
     }
 
@@ -303,7 +394,7 @@ class _StockScreenState extends State<StockScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        product == null ? "Tambah Produk Baru" : "Edit Produk",
+                        productId == null ? "Tambah Produk Baru" : "Edit Produk",
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -316,8 +407,6 @@ class _StockScreenState extends State<StockScreen> {
                     ],
                   ),
                   const SizedBox(height: 16),
-
-                  // Form Fields
                   Row(
                     children: [
                       Expanded(child: _buildInput("SKU", _skuController)),
@@ -337,7 +426,7 @@ class _StockScreenState extends State<StockScreen> {
                             DropdownButtonFormField<String>(
                               value: _selectedCategory,
                               dropdownColor: AppColors.surface,
-                              style: const TextStyle(color: Colors.white),
+                              style: const TextStyle(color: AppColors.textPrimary),
                               decoration: InputDecoration(
                                 filled: true,
                                 fillColor: AppColors.background,
@@ -350,18 +439,13 @@ class _StockScreenState extends State<StockScreen> {
                                   vertical: 14,
                                 ),
                               ),
-                              items:
-                                  [
-                                    'Makanan',
-                                    'Minuman',
-                                    'Dapur',
-                                    'Kebersihan',
-                                  ].map((String val) {
-                                    return DropdownMenuItem(
-                                      value: val,
-                                      child: Text(val),
-                                    );
-                                  }).toList(),
+                              items: ['Makanan', 'Minuman', 'Dapur', 'Kebersihan']
+                                  .map((String val) {
+                                return DropdownMenuItem(
+                                  value: val,
+                                  child: Text(val),
+                                );
+                              }).toList(),
                               onChanged: (val) =>
                                   setState(() => _selectedCategory = val!),
                             ),
@@ -378,6 +462,8 @@ class _StockScreenState extends State<StockScreen> {
                     _priceController,
                     isNumber: true,
                   ),
+                  const SizedBox(height: 12),
+                  _buildInput("Barcode (Opsional)", _barcodeController),
                   const SizedBox(height: 12),
                   Row(
                     children: [
@@ -398,25 +484,20 @@ class _StockScreenState extends State<StockScreen> {
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 24),
-
-                  // Tombol Simpan & Hapus (Jika Edit)
                   Row(
                     children: [
-                      if (product != null)
+                      if (productId != null)
                         Expanded(
                           flex: 1,
                           child: Padding(
                             padding: const EdgeInsets.only(right: 12),
                             child: OutlinedButton(
-                              onPressed: () => _deleteProduct(product),
+                              onPressed: () => _deleteProduct(productId),
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: AppColors.danger,
                                 side: const BorderSide(color: AppColors.danger),
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                ),
+                                padding: const EdgeInsets.symmetric(vertical: 16),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -438,7 +519,7 @@ class _StockScreenState extends State<StockScreen> {
                             ),
                           ),
                           child: Text(
-                            product == null ? "Simpan Produk" : "Update Produk",
+                            productId == null ? "Simpan Produk" : "Update Produk",
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
@@ -471,8 +552,11 @@ class _StockScreenState extends State<StockScreen> {
         TextFormField(
           controller: controller,
           keyboardType: isNumber ? TextInputType.number : TextInputType.text,
-          validator: (val) => val!.isEmpty ? 'Wajib diisi' : null,
-          style: const TextStyle(color: Colors.white),
+          validator: (val) {
+            if (label.contains('Opsional')) return null;
+            return val!.isEmpty ? 'Wajib diisi' : null;
+          },
+          style: const TextStyle(color: AppColors.textPrimary),
           decoration: InputDecoration(
             filled: true,
             fillColor: AppColors.background,
@@ -490,70 +574,71 @@ class _StockScreenState extends State<StockScreen> {
     );
   }
 
-  void _saveProduct() {
-    if (_formKey.currentState!.validate()) {
-      setState(() {
-        if (_editingProductId != null) {
-          // UPDATE Logic
-          final index = dummyProducts.indexWhere(
-            (p) => p.id == _editingProductId,
-          );
-          if (index != -1) {
-            dummyProducts[index] = Product(
-              id: _editingProductId!,
-              name: _nameController.text,
-              sku: _skuController.text,
-              category: _selectedCategory,
-              price: double.parse(_priceController.text),
-              stock: int.parse(_stockController.text),
-              minStock: int.parse(_minStockController.text),
-            );
-          }
-        } else {
-          // CREATE Logic
-          dummyProducts.add(
-            Product(
-              id: DateTime.now().toString(),
-              name: _nameController.text,
-              sku: _skuController.text,
-              category: _selectedCategory,
-              price: double.parse(_priceController.text),
-              stock: int.parse(_stockController.text),
-              minStock: int.parse(_minStockController.text),
-            ),
-          );
-        }
-      });
-      Navigator.pop(context);
+  Future<void> _saveProduct() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    try {
+      final productData = {
+        'sku': _skuController.text.trim(),
+        'name': _nameController.text.trim(),
+        'category': _selectedCategory,
+        'price': double.parse(_priceController.text),
+        'stock': int.parse(_stockController.text),
+        'minStock': int.parse(_minStockController.text),
+        'barcode': _barcodeController.text.trim().isEmpty 
+            ? null 
+            : _barcodeController.text.trim(),
+      };
+
+      if (_editingProductId != null) {
+        await _databaseService.updateProduct(_editingProductId!, productData);
+      } else {
+        await _databaseService.addProduct(productData);
+      }
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_editingProductId != null 
+                ? 'Produk berhasil diperbarui' 
+                : 'Produk berhasil ditambahkan'),
+            backgroundColor: AppColors.accent,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: AppColors.warning,
+          ),
+        );
+      }
     }
   }
 
-  void _deleteProduct(Product product) {
-    showDialog(
+  Future<void> _deleteProduct(String productId) async {
+    final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.surface,
         title: const Text("Hapus Produk?"),
-        content: Text(
-          "Yakin ingin menghapus ${product.name}?",
-          style: const TextStyle(color: AppColors.textSecondary),
+        content: const Text(
+          "Yakin ingin menghapus produk ini?",
+          style: TextStyle(color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(context, false),
             child: const Text(
               "Batal",
               style: TextStyle(color: AppColors.textSecondary),
             ),
           ),
           TextButton(
-            onPressed: () {
-              setState(
-                () => dummyProducts.removeWhere((p) => p.id == product.id),
-              );
-              Navigator.pop(context); // Tutup Dialog
-              Navigator.pop(context); // Tutup Modal Form
-            },
+            onPressed: () => Navigator.pop(context, true),
             child: const Text(
               "Hapus",
               style: TextStyle(color: AppColors.danger),
@@ -562,5 +647,29 @@ class _StockScreenState extends State<StockScreen> {
         ],
       ),
     );
+
+    if (confirm == true) {
+      try {
+        await _databaseService.deleteProduct(productId);
+        if (mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Produk berhasil dihapus'),
+              backgroundColor: AppColors.accent,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: ${e.toString()}'),
+              backgroundColor: AppColors.warning,
+            ),
+          );
+        }
+      }
+    }
   }
 }

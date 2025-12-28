@@ -174,7 +174,7 @@ class _KaryawanScreenState extends State<KaryawanScreen> {
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 15,
-                      color: Colors.white,
+                      color: AppColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -652,7 +652,7 @@ class _KaryawanScreenState extends State<KaryawanScreen> {
           controller: controller,
           keyboardType: keyboardType,
           validator: (val) => val!.isEmpty ? 'Wajib diisi' : null,
-          style: const TextStyle(color: Colors.white),
+          style: const TextStyle(color: AppColors.textPrimary),
           decoration: InputDecoration(
             filled: true,
             fillColor: AppColors.background,
@@ -712,7 +712,7 @@ class _KaryawanScreenState extends State<KaryawanScreen> {
               });
             }
           },
-          style: const TextStyle(color: Colors.white),
+          style: const TextStyle(color: AppColors.textPrimary),
           decoration: InputDecoration(
             filled: true,
             fillColor: AppColors.background,
@@ -750,9 +750,9 @@ class _KaryawanScreenState extends State<KaryawanScreen> {
         ),
         const SizedBox(height: 6),
         DropdownButtonFormField<String>(
-          value: value,
+          initialValue: value,
           dropdownColor: AppColors.surface,
-          style: const TextStyle(color: Colors.white),
+          style: const TextStyle(color: AppColors.textPrimary),
           decoration: InputDecoration(
             filled: true,
             fillColor: AppColors.background,

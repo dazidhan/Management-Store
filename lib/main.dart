@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'theme/app_theme.dart';
-import 'screens/main_layout.dart';
+import 'widgets/auth_gate.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
   runApp(const MyApp());
 }
 
@@ -12,10 +15,10 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'TokoKu',
+      title: 'Kasirly',
       debugShowCheckedModeBanner: false,
       theme: getAppTheme(),
-      home: const MainLayout(),
+      home: const AuthGate(),
     );
   }
 }

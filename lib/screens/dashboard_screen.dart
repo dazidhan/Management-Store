@@ -1,41 +1,81 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:project_coba/screens/kasir_screen.dart';
 import '../theme/app_theme.dart';
-import '../models/dummy_data.dart';
-import 'package:intl/intl.dart'; // Tambahkan ini
-import 'transaction_detail_screen.dart'; // Tambahkan ini
-import 'analitik_screen.dart'; // <-- Tambahkan
-import 'laporan_screen.dart'; // <-- Tambahkan
+import '../services/database_service.dart';
+import 'package:intl/intl.dart';
+import 'analitik_screen.dart';
+import 'laporan_screen.dart';
+import 'barcode_scanner_screen.dart';
+import 'setup_store_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final databaseService = DatabaseService();
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. Install Banner (Opsional, kita buat UI-nya saja)
-
-          // 2. Greeting
+          // Greeting & Store Name (Dynamic from Firestore)
           const Text(
             "Selamat Pagi 👋",
             style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
           ),
           const SizedBox(height: 4),
-          const Text(
-            "Ahmad Store",
-            style: TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
+          
+          // StreamBuilder untuk Store Profile
+          StreamBuilder<DocumentSnapshot>(
+            stream: databaseService.getStoreProfile(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Text(
+                  "Loading...",
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                );
+              }
+
+              if (snapshot.hasError) {
+                return const Text(
+                  "Error",
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                );
+              }
+
+              // Jika store profile tidak ada atau kosong
+              if (!snapshot.hasData || !snapshot.data!.exists) {
+                return _buildSetupStoreCard(context);
+              }
+
+              // Tampilkan nama toko dari Firestore
+              final storeData = snapshot.data!.data() as Map<String, dynamic>?;
+              final storeName = storeData?['storeName'] as String? ?? 'Toko Saya';
+
+              return Text(
+                storeName,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              );
+            },
           ),
           const SizedBox(height: 24),
 
-          // 3. Stats Grid
+          // Stats Grid (TODO: Make dynamic from Firestore)
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -45,20 +85,20 @@ class DashboardScreen extends StatelessWidget {
               mainAxisSpacing: 12,
               childAspectRatio: 1.5,
             ),
-            itemCount: dummyStats.length,
+            itemCount: 4,
             itemBuilder: (context, index) {
-              return _buildStatCard(dummyStats[index]);
+              // Placeholder stats - will be made dynamic later
+              return _buildStatCard(index);
             },
           ),
           const SizedBox(height: 24),
 
-          // 4. Aksi Cepat
+          // Aksi Cepat
           const Text(
             "Aksi Cepat",
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
           const SizedBox(height: 12),
-          // ... di dalam Column/Row Aksi Cepat ...
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -79,10 +119,15 @@ class DashboardScreen extends StatelessWidget {
                 Icons.qr_code_scanner,
                 "Scan",
                 AppColors.info,
-                () {},
+                () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const BarcodeScannerScreen(),
+                    ),
+                  );
+                },
               ),
-
-              // --- UBAH BAGIAN INI ---
               _buildQuickAction(
                 Icons.assignment,
                 "Laporan",
@@ -96,8 +141,6 @@ class DashboardScreen extends StatelessWidget {
                   );
                 },
               ),
-
-              // --- DAN BAGIAN INI ---
               _buildQuickAction(
                 Icons.bar_chart,
                 "Analitik",
@@ -115,7 +158,7 @@ class DashboardScreen extends StatelessWidget {
           ),
           const SizedBox(height: 24),
 
-          // 5. Transaksi Terakhir
+          // Transaksi Terakhir (Dynamic from Firestore)
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -132,14 +175,44 @@ class DashboardScreen extends StatelessWidget {
               ),
             ],
           ),
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: dummyTransactions.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 8),
-            itemBuilder: (context, index) {
-              // Kirim context agar bisa melakukan Navigator.push
-              return _buildTransactionItem(context, dummyTransactions[index]);
+          StreamBuilder<QuerySnapshot>(
+            stream: databaseService.getTransactions(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              if (snapshot.hasError) {
+                return Center(
+                  child: Text('Error: ${snapshot.error}'),
+                );
+              }
+
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(32.0),
+                    child: Text(
+                      'Belum ada transaksi',
+                      style: TextStyle(color: AppColors.textSecondary),
+                    ),
+                  ),
+                );
+              }
+
+              final transactions = snapshot.data!.docs.take(5).toList();
+
+              return ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: transactions.length,
+                separatorBuilder: (context, index) => const SizedBox(height: 8),
+                itemBuilder: (context, index) {
+                  final transaction = transactions[index];
+                  final data = transaction.data() as Map<String, dynamic>;
+                  return _buildTransactionItem(context, transaction.id, data);
+                },
+              );
             },
           ),
         ],
@@ -147,34 +220,63 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  // --- Widgets Components ---
+  Widget _buildSetupStoreCard(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const SetupStoreScreen(),
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: AppColors.primary.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.primary, width: 2),
+        ),
+        child: Column(
+          children: [
+            const Icon(
+              Icons.store,
+              size: 48,
+              color: AppColors.primary,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Setup Toko Kamu',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Klik untuk mengatur nama dan alamat toko',
+              style: TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-  Widget _buildStatCard(StatItem stat) {
-    Color iconBgColor;
-    Color iconColor;
-    IconData iconData;
+  Widget _buildStatCard(int index) {
+    final stats = [
+      {'title': 'Total Pendapatan', 'value': 'Rp 0', 'icon': Icons.account_balance_wallet, 'color': AppColors.info},
+      {'title': 'Transaksi', 'value': '0', 'icon': Icons.shopping_cart, 'color': AppColors.primary},
+      {'title': 'Stok Rendah', 'value': '0 Item', 'icon': Icons.inventory_2, 'color': AppColors.warning},
+      {'title': 'Pelanggan', 'value': '0', 'icon': Icons.group, 'color': AppColors.success},
+    ];
 
-    switch (stat.icon) {
-      case 'wallet':
-        iconBgColor = AppColors.info.withOpacity(0.1);
-        iconColor = AppColors.info;
-        iconData = Icons.account_balance_wallet;
-        break;
-      case 'cart':
-        iconBgColor = AppColors.primary.withOpacity(0.1);
-        iconColor = AppColors.primary;
-        iconData = Icons.shopping_cart;
-        break;
-      case 'package':
-        iconBgColor = AppColors.warning.withOpacity(0.1);
-        iconColor = AppColors.warning;
-        iconData = Icons.inventory_2;
-        break;
-      default:
-        iconBgColor = AppColors.success.withOpacity(0.1);
-        iconColor = AppColors.success;
-        iconData = Icons.group;
-    }
+    final stat = stats[index];
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -198,7 +300,7 @@ class DashboardScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    stat.title,
+                    stat['title'] as String,
                     style: const TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 11,
@@ -206,7 +308,7 @@ class DashboardScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    stat.value,
+                    stat['value'] as String,
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
@@ -217,22 +319,12 @@ class DashboardScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: iconBgColor,
+                  color: (stat['color'] as Color).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(iconData, color: iconColor, size: 18),
+                child: Icon(stat['icon'] as IconData, color: stat['color'] as Color, size: 18),
               ),
             ],
-          ),
-          Text(
-            stat.change,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: stat.type == 'positive'
-                  ? AppColors.success
-                  : AppColors.danger,
-            ),
           ),
         ],
       ),
@@ -251,7 +343,7 @@ class DashboardScreen extends StatelessWidget {
         children: [
           Container(
             height: 56,
-            width: 56, // Fixed size to match grid look
+            width: 56,
             decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(16),
@@ -281,24 +373,35 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTransactionItem(BuildContext context, Transaction trx) {
-    // Format rupiah di dashboard
+  Widget _buildTransactionItem(BuildContext context, String transactionId, Map<String, dynamic> data) {
     final currencyFormat = NumberFormat.currency(
       locale: 'id_ID',
       symbol: 'Rp ',
       decimalDigits: 0,
     );
 
+    final customerName = data['customerName'] as String? ?? 'Pelanggan Umum';
+    final totalPrice = (data['totalPrice'] as num?)?.toDouble() ?? 0.0;
+    final items = data['items'] as List<dynamic>? ?? [];
+    final totalItems = items.fold<int>(0, (sum, item) => sum + ((item as Map)['qty'] as int? ?? 0));
+    
+    // Format timestamp
+    String timeStr = 'Hari ini';
+    if (data['createdAt'] != null) {
+      final timestamp = data['createdAt'] as Timestamp;
+      final date = timestamp.toDate();
+      final now = DateTime.now();
+      if (date.year == now.year && date.month == now.month && date.day == now.day) {
+        timeStr = 'Hari ini, ${DateFormat('HH:mm').format(date)}';
+      } else {
+        timeStr = DateFormat('dd MMM, HH:mm').format(date);
+      }
+    }
+
     return InkWell(
-      // <-- Tambahkan InkWell agar bisa diklik
       onTap: () {
-        // Navigasi ke Halaman Detail
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => TransactionDetailScreen(transaction: trx),
-          ),
-        );
+        // Navigate to transaction detail
+        // TODO: Create transaction detail from Firestore data
       },
       borderRadius: BorderRadius.circular(16),
       child: Container(
@@ -329,15 +432,14 @@ class DashboardScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    trx.customerName,
+                    customerName,
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 13,
                     ),
                   ),
-                  // Mengambil total item dari getter yang kita buat di model
                   Text(
-                    "${trx.totalItemCount} item • ${trx.time}",
+                    "$totalItems item • $timeStr",
                     style: const TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 11,
@@ -350,7 +452,7 @@ class DashboardScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  currencyFormat.format(trx.totalPrice),
+                  currencyFormat.format(totalPrice),
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
