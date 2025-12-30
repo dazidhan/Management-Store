@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart'; // Pastikan import intl untuk format tanggal
+import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme/app_theme.dart';
-import '../models/dummy_data.dart';
+import '../services/database_service.dart';
 
 class KaryawanScreen extends StatefulWidget {
   const KaryawanScreen({super.key});
@@ -12,138 +13,196 @@ class KaryawanScreen extends StatefulWidget {
 
 class _KaryawanScreenState extends State<KaryawanScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _databaseService = DatabaseService();
 
-  // Form Controllers
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
-  final _emailController = TextEditingController(); // Controller Email
-  final _dateController = TextEditingController(); // Controller Tanggal
+  final _emailController = TextEditingController();
+  final _dateController = TextEditingController();
 
   String _selectedRole = 'Kasir';
   String _selectedStatus = 'active';
   String _filterStatus = 'Semua';
 
   String? _editingEmployeeId;
+  bool _isLoading = false;
+
+  String _getSafeDateString(dynamic dateData) {
+    if (dateData == null) return '-';
+    try {
+      DateTime date;
+      if (dateData is Timestamp) {
+        date = dateData.toDate();
+      } else if (dateData is String) {
+        date = DateTime.parse(dateData);
+      } else {
+        return '-';
+      }
+      return DateFormat('dd MMM yyyy').format(date);
+    } catch (e) {
+      return '-';
+    }
+  }
+
+  DateTime? _getSafeDateObject(dynamic dateData) {
+    if (dateData == null) return null;
+    try {
+      if (dateData is Timestamp) return dateData.toDate();
+      if (dateData is String) return DateTime.parse(dateData);
+    } catch (e) {
+      return null;
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
-    // Logic Filter
-    final filteredEmployees = dummyEmployees.where((e) {
-      if (_filterStatus == 'Semua') return true;
-      return e.status == (_filterStatus == 'Aktif' ? 'active' : 'cuti');
-    }).toList();
-
     return Scaffold(
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header & Tombol Tambah
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      body: StreamBuilder<QuerySnapshot>(
+        stream: _databaseService.getEmployees(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (snapshot.hasError) {
+            return Center(child: Text("Error: ${snapshot.error}"));
+          }
+
+          final docs = snapshot.data?.docs ?? [];
+
+          final filteredDocs = docs.where((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            final status = data['status'] ?? 'active';
+
+            if (_filterStatus == 'Semua') return true;
+            return status == (_filterStatus == 'Aktif' ? 'active' : 'cuti');
+          }).toList();
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      "Tim Karyawan",
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Tim Karyawan",
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        Text(
+                          "${docs.length} personel terdaftar",
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                     ),
-                    Text(
-                      "${dummyEmployees.length} personel terdaftar",
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 12,
+                    InkWell(
+                      onTap: () => _showEmployeeForm(null),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.primary.withOpacity(0.4),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(Icons.add, color: Colors.white),
                       ),
                     ),
                   ],
                 ),
-                InkWell(
-                  onTap: () => _showEmployeeForm(null),
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(14),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primary.withOpacity(0.4),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
+                const SizedBox(height: 20),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: ['Semua', 'Aktif', 'Cuti'].map((status) {
+                      final isSelected = _filterStatus == status;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ChoiceChip(
+                          label: Text(status),
+                          selected: isSelected,
+                          selectedColor: AppColors.primary.withOpacity(0.1),
+                          backgroundColor: AppColors.surface,
+                          side: BorderSide(
+                            color: isSelected
+                                ? AppColors.primary
+                                : AppColors.border,
+                          ),
+                          labelStyle: TextStyle(
+                            color: isSelected
+                                ? AppColors.primary
+                                : AppColors.textSecondary,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          onSelected: (val) =>
+                              setState(() => _filterStatus = status),
                         ),
-                      ],
-                    ),
-                    child: const Icon(Icons.add, color: Colors.white),
+                      );
+                    }).toList(),
                   ),
                 ),
+                const SizedBox(height: 16),
+
+                if (filteredDocs.isEmpty)
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.only(top: 50),
+                      child: Text(
+                        "Belum ada data karyawan",
+                        style: TextStyle(color: AppColors.textSecondary),
+                      ),
+                    ),
+                  )
+                else
+                  ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: filteredDocs.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      final doc = filteredDocs[index];
+                      final data = doc.data() as Map<String, dynamic>;
+                      data['id'] = doc.id;
+                      return _buildEmployeeCard(data);
+                    },
+                  ),
+                const SizedBox(height: 100),
               ],
             ),
-            const SizedBox(height: 20),
-
-            // Filter Chips
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: ['Semua', 'Aktif', 'Cuti'].map((status) {
-                  final isSelected = _filterStatus == status;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ChoiceChip(
-                      label: Text(status),
-                      selected: isSelected,
-                      selectedColor: AppColors.surface,
-                      backgroundColor: AppColors.background,
-                      side: BorderSide(
-                        color: isSelected
-                            ? AppColors.primary
-                            : AppColors.border,
-                      ),
-                      labelStyle: TextStyle(
-                        color: isSelected
-                            ? AppColors.primary
-                            : AppColors.textSecondary,
-                        fontWeight: isSelected
-                            ? FontWeight.bold
-                            : FontWeight.normal,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      onSelected: (val) =>
-                          setState(() => _filterStatus = status),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // List Karyawan
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: filteredEmployees.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                return _buildEmployeeCard(filteredEmployees[index]);
-              },
-            ),
-            const SizedBox(height: 100),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
 
-  // --- WIDGET CARD ---
-  Widget _buildEmployeeCard(Employee employee) {
-    final isActive = employee.status == 'active';
+  Widget _buildEmployeeCard(Map<String, dynamic> employee) {
+    final isActive = employee['status'] == 'active';
+    final name = employee['name'] ?? 'Tanpa Nama';
+    final role = employee['role'] ?? 'Staff';
 
     return GestureDetector(
       onTap: () => _showEmployeeDetail(employee),
@@ -153,24 +212,24 @@ class _KaryawanScreenState extends State<KaryawanScreen> {
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: AppColors.border),
-          boxShadow: const [
+          boxShadow: [
             BoxShadow(
-              color: Colors.black12,
+              color: Colors.black.withOpacity(0.05),
               blurRadius: 4,
-              offset: Offset(0, 2),
+              offset: const Offset(0, 2),
             ),
           ],
         ),
         child: Row(
           children: [
-            _buildAvatar(employee.name),
+            _buildAvatar(name),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    employee.name,
+                    name,
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 15,
@@ -181,9 +240,9 @@ class _KaryawanScreenState extends State<KaryawanScreen> {
                   Row(
                     children: [
                       Icon(
-                        employee.role == 'Supervisor'
+                        role == 'Supervisor'
                             ? Icons.security
-                            : (employee.role == 'Kasir'
+                            : (role == 'Kasir'
                                   ? Icons.point_of_sale
                                   : Icons.inventory),
                         size: 14,
@@ -191,7 +250,7 @@ class _KaryawanScreenState extends State<KaryawanScreen> {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        employee.role,
+                        role,
                         style: const TextStyle(
                           color: AppColors.textSecondary,
                           fontSize: 12,
@@ -230,8 +289,15 @@ class _KaryawanScreenState extends State<KaryawanScreen> {
     );
   }
 
-  // --- MODAL DETAIL ---
-  void _showEmployeeDetail(Employee employee) {
+  void _showEmployeeDetail(Map<String, dynamic> employee) {
+    final name = employee['name'] ?? '';
+    final role = employee['role'] ?? '';
+    final status = employee['status'] ?? 'active';
+    final email = employee['email'] ?? '-';
+    final phone = employee['phone'] ?? '-';
+
+    final joinedAt = _getSafeDateString(employee['joinedAt']);
+
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.background,
@@ -241,7 +307,7 @@ class _KaryawanScreenState extends State<KaryawanScreen> {
       ),
       builder: (context) {
         return DraggableScrollableSheet(
-          initialChildSize: 0.7, // Sedikit lebih tinggi untuk muat info baru
+          initialChildSize: 0.7,
           minChildSize: 0.5,
           maxChildSize: 0.95,
           expand: false,
@@ -263,50 +329,47 @@ class _KaryawanScreenState extends State<KaryawanScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  Hero(
-                    tag: 'avatar-${employee.id}',
-                    child: Container(
-                      width: 100,
-                      height: 100,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            AppColors.primary,
-                            AppColors.primary.withOpacity(0.5),
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primary.withOpacity(0.3),
-                            blurRadius: 20,
-                          ),
-                        ],
+                  Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [AppColors.primary, AppColors.secondary],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
-                      child: Center(
-                        child: Text(
-                          employee.name.substring(0, 1).toUpperCase(),
-                          style: const TextStyle(
-                            fontSize: 40,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withOpacity(0.3),
+                          blurRadius: 20,
+                        ),
+                      ],
+                    ),
+                    child: Center(
+                      child: Text(
+                        name.isNotEmpty
+                            ? name.substring(0, 1).toUpperCase()
+                            : "?",
+                        style: const TextStyle(
+                          fontSize: 40,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
                         ),
                       ),
                     ),
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    employee.name,
+                    name,
                     style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
                     ),
                   ),
                   Text(
-                    employee.role,
+                    role,
                     style: const TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 14,
@@ -339,30 +402,27 @@ class _KaryawanScreenState extends State<KaryawanScreen> {
                     decoration: BoxDecoration(
                       color: AppColors.surface,
                       borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: AppColors.border),
                     ),
                     child: Column(
                       children: [
                         _buildInfoRow(
                           "Status",
-                          employee.status == 'active' ? "Aktif" : "Cuti",
-                          employee.status == 'active'
+                          status == 'active' ? "Aktif" : "Cuti",
+                          status == 'active'
                               ? AppColors.success
                               : AppColors.warning,
                         ),
                         const Divider(color: AppColors.border, height: 24),
-                        _buildInfoRow(
-                          "Email",
-                          employee.email,
-                          Colors.white,
-                        ), // Menampilkan Email
+                        _buildInfoRow("Email", email, AppColors.textPrimary),
                         const Divider(color: AppColors.border, height: 24),
-                        _buildInfoRow("Nomor HP", employee.phone, Colors.white),
+                        _buildInfoRow("Nomor HP", phone, AppColors.textPrimary),
                         const Divider(color: AppColors.border, height: 24),
                         _buildInfoRow(
                           "Bergabung",
-                          _formatDate(employee.joinedAt),
-                          Colors.white,
-                        ), // Menampilkan Tanggal
+                          joinedAt,
+                          AppColors.textPrimary,
+                        ),
                       ],
                     ),
                   ),
@@ -375,7 +435,7 @@ class _KaryawanScreenState extends State<KaryawanScreen> {
                         child: OutlinedButton(
                           onPressed: () {
                             Navigator.pop(context);
-                            _confirmDelete(employee);
+                            _confirmDelete(employee['id'], name);
                           },
                           style: OutlinedButton.styleFrom(
                             foregroundColor: AppColors.danger,
@@ -418,24 +478,28 @@ class _KaryawanScreenState extends State<KaryawanScreen> {
     );
   }
 
-  // --- MODAL FORM (UPDATE: ADA EMAIL & TANGGAL) ---
-  void _showEmployeeForm(Employee? employee) {
+  void _showEmployeeForm(Map<String, dynamic>? employee) {
     if (employee != null) {
-      _editingEmployeeId = employee.id;
-      _nameController.text = employee.name;
-      _phoneController.text = employee.phone;
-      _emailController.text = employee.email; // Isi Email
-      _dateController.text = employee.joinedAt; // Isi Tanggal
-      _selectedRole = employee.role;
-      _selectedStatus = employee.status;
+      _editingEmployeeId = employee['id'];
+      _nameController.text = employee['name'] ?? '';
+      _phoneController.text = employee['phone'] ?? '';
+      _emailController.text = employee['email'] ?? '';
+
+      DateTime? dateObj = _getSafeDateObject(employee['joinedAt']);
+      if (dateObj != null) {
+        _dateController.text = DateFormat('yyyy-MM-dd').format(dateObj);
+      } else {
+        _dateController.text = '';
+      }
+
+      _selectedRole = employee['role'] ?? 'Kasir';
+      _selectedStatus = employee['status'] ?? 'active';
     } else {
       _editingEmployeeId = null;
       _nameController.clear();
       _phoneController.clear();
       _emailController.clear();
-      _dateController.text = DateFormat(
-        'yyyy-MM-dd',
-      ).format(DateTime.now()); // Default Hari Ini
+      _dateController.text = DateFormat('yyyy-MM-dd').format(DateTime.now());
       _selectedRole = 'Kasir';
       _selectedStatus = 'active';
     }
@@ -470,11 +534,15 @@ class _KaryawanScreenState extends State<KaryawanScreen> {
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
                         ),
                       ),
                       IconButton(
                         onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.close),
+                        icon: const Icon(
+                          Icons.close,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
                     ],
                   ),
@@ -482,8 +550,6 @@ class _KaryawanScreenState extends State<KaryawanScreen> {
 
                   _buildInput("Nama Lengkap", _nameController),
                   const SizedBox(height: 16),
-
-                  // INPUT EMAIL (BARU)
                   _buildInput(
                     "Alamat Email",
                     _emailController,
@@ -524,7 +590,6 @@ class _KaryawanScreenState extends State<KaryawanScreen> {
                         ),
                       ),
                       const SizedBox(width: 16),
-                      // INPUT TANGGAL (BARU - DATE PICKER)
                       Expanded(child: _buildDatePicker("Bergabung")),
                     ],
                   ),
@@ -558,14 +623,86 @@ class _KaryawanScreenState extends State<KaryawanScreen> {
     );
   }
 
-  // --- WIDGET HELPER ---
+  Future<void> _saveEmployee() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() => _isLoading = true);
+      try {
+        final data = {
+          'name': _nameController.text,
+          'role': _selectedRole,
+          'status': _selectedStatus,
+          'phone': _phoneController.text,
+          'email': _emailController.text,
+          'joinedAt': DateTime.parse(_dateController.text),
+        };
+
+        if (_editingEmployeeId != null) {
+          await _databaseService.updateEmployee(_editingEmployeeId!, data);
+        } else {
+          await _databaseService.addEmployee(data);
+        }
+        if (mounted) Navigator.pop(context);
+      } catch (e) {
+        if (mounted)
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(e.toString()),
+              backgroundColor: AppColors.warning,
+            ),
+          );
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _confirmDelete(String id, String name) async {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text(
+          "Hapus Karyawan?",
+          style: TextStyle(color: AppColors.textPrimary),
+        ),
+        content: Text(
+          "Yakin ingin menghapus data $name?",
+          style: const TextStyle(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              "Batal",
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
+          TextButton(
+            onPressed: () async {
+              try {
+                await _databaseService.deleteEmployee(id);
+                if (mounted) Navigator.pop(context);
+              } catch (e) {
+                // Handle error
+              }
+            },
+            child: const Text(
+              "Hapus",
+              style: TextStyle(color: AppColors.danger),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildAvatar(String name) {
     return Container(
       width: 50,
       height: 50,
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [AppColors.secondary, AppColors.surface],
+          colors: [AppColors.primary.withOpacity(0.1), AppColors.surface],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -670,71 +807,6 @@ class _KaryawanScreenState extends State<KaryawanScreen> {
     );
   }
 
-  // Helper Khusus Date Picker
-  Widget _buildDatePicker(String label) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-        ),
-        const SizedBox(height: 6),
-        TextFormField(
-          controller: _dateController,
-          readOnly: true, // Tidak bisa diketik manual
-          onTap: () async {
-            DateTime? pickedDate = await showDatePicker(
-              context: context,
-              initialDate: DateTime.now(),
-              firstDate: DateTime(2000),
-              lastDate: DateTime(2100),
-              builder: (context, child) {
-                return Theme(
-                  data: Theme.of(context).copyWith(
-                    colorScheme: const ColorScheme.dark(
-                      primary: AppColors.primary,
-                      onPrimary: Colors.white,
-                      surface: AppColors.surface,
-                      onSurface: Colors.white,
-                    ),
-                  ),
-                  child: child!,
-                );
-              },
-            );
-            if (pickedDate != null) {
-              String formattedDate = DateFormat(
-                'yyyy-MM-dd',
-              ).format(pickedDate);
-              setState(() {
-                _dateController.text = formattedDate;
-              });
-            }
-          },
-          style: const TextStyle(color: AppColors.textPrimary),
-          decoration: InputDecoration(
-            filled: true,
-            fillColor: AppColors.background,
-            suffixIcon: const Icon(
-              Icons.calendar_today,
-              color: AppColors.textSecondary,
-              size: 18,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
-            ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 14,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildDropdown(
     String label,
     String value,
@@ -750,7 +822,7 @@ class _KaryawanScreenState extends State<KaryawanScreen> {
         ),
         const SizedBox(height: 6),
         DropdownButtonFormField<String>(
-          initialValue: value,
+          value: value,
           dropdownColor: AppColors.surface,
           style: const TextStyle(color: AppColors.textPrimary),
           decoration: InputDecoration(
@@ -779,83 +851,64 @@ class _KaryawanScreenState extends State<KaryawanScreen> {
     );
   }
 
-  String _formatDate(String dateStr) {
-    try {
-      final date = DateTime.parse(dateStr);
-      return DateFormat('dd MMM yyyy', 'id_ID').format(date);
-    } catch (e) {
-      return dateStr;
-    }
-  }
-
-  void _saveEmployee() {
-    if (_formKey.currentState!.validate()) {
-      setState(() {
-        if (_editingEmployeeId != null) {
-          final index = dummyEmployees.indexWhere(
-            (e) => e.id == _editingEmployeeId,
-          );
-          if (index != -1) {
-            dummyEmployees[index] = Employee(
-              id: _editingEmployeeId!,
-              name: _nameController.text,
-              role: _selectedRole,
-              status: _selectedStatus,
-              phone: _phoneController.text,
-              email: _emailController.text, // SIMPAN EMAIL
-              joinedAt: _dateController.text, // SIMPAN TANGGAL
-            );
-          }
-        } else {
-          dummyEmployees.add(
-            Employee(
-              id: DateTime.now().toString(),
-              name: _nameController.text,
-              role: _selectedRole,
-              status: _selectedStatus,
-              phone: _phoneController.text,
-              email: _emailController.text, // SIMPAN EMAIL
-              joinedAt: _dateController.text, // SIMPAN TANGGAL
-            ),
-          );
-        }
-      });
-      Navigator.pop(context);
-    }
-  }
-
-  void _confirmDelete(Employee employee) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text("Hapus Karyawan?"),
-        content: Text(
-          "Yakin ingin menghapus data ${employee.name}?",
-          style: const TextStyle(color: AppColors.textSecondary),
+  Widget _buildDatePicker(String label) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
-              "Batal",
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
+        const SizedBox(height: 6),
+        TextFormField(
+          controller: _dateController,
+          readOnly: true,
+          onTap: () async {
+            DateTime? pickedDate = await showDatePicker(
+              context: context,
+              initialDate: DateTime.now(),
+              firstDate: DateTime(2000),
+              lastDate: DateTime(2100),
+              builder: (context, child) => Theme(
+                data: Theme.of(context).copyWith(
+                  colorScheme: const ColorScheme.light(
+                    primary: AppColors.primary,
+                    onPrimary: Colors.white,
+                    surface: AppColors.surface,
+                    onSurface: AppColors.textPrimary,
+                  ),
+                ),
+                child: child!,
+              ),
+            );
+            if (pickedDate != null) {
               setState(
-                () => dummyEmployees.removeWhere((e) => e.id == employee.id),
+                () => _dateController.text = DateFormat(
+                  'yyyy-MM-dd',
+                ).format(pickedDate),
               );
-              Navigator.pop(context);
-            },
-            child: const Text(
-              "Hapus",
-              style: TextStyle(color: AppColors.danger),
+            }
+          },
+          style: const TextStyle(color: AppColors.textPrimary),
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: AppColors.background,
+            suffixIcon: const Icon(
+              Icons.calendar_today,
+              color: AppColors.textSecondary,
+              size: 18,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

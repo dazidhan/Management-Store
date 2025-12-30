@@ -23,6 +23,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   }
 
   Future<void> _sendResetEmail() async {
+    if (_isLoading) return;
+
     if (_emailController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -37,7 +39,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
     try {
       await _authService.sendPasswordResetEmail(_emailController.text);
-      setState(() => _emailSent = true);
+      if (mounted) {
+        setState(() => _emailSent = true);
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -68,7 +72,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              // Header Section
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 40, 24, 0),
                 child: Column(
@@ -85,16 +88,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     const SizedBox(height: 8),
                     const Text(
                       'Selamat datang di Kasirly',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.white,
-                      ),
+                      style: TextStyle(fontSize: 16, color: Colors.white),
                     ),
                   ],
                 ),
               ),
-
-              // Content Card
               Expanded(
                 child: Container(
                   margin: const EdgeInsets.only(top: 40),
@@ -111,7 +109,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         const SizedBox(height: 16),
-                        // Back to Login
                         GestureDetector(
                           onTap: () => Navigator.pop(context),
                           child: const Row(
@@ -133,8 +130,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                           ),
                         ),
                         const SizedBox(height: 24),
-
-                        if (!_emailSent) _buildEmailForm() else _buildSuccessMessage(),
+                        if (!_emailSent)
+                          _buildEmailForm()
+                        else
+                          _buildSuccessMessage(),
                       ],
                     ),
                   ),
@@ -160,7 +159,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           ),
         ),
         const SizedBox(height: 24),
-        // Illustration placeholder
         Container(
           height: 200,
           decoration: BoxDecoration(
@@ -176,16 +174,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         const SizedBox(height: 24),
         const Text(
           'Tenang saja, kami siap membantu Anda.',
-          style: TextStyle(
-            fontSize: 16,
-            color: AppColors.textSecondary,
-          ),
+          style: TextStyle(fontSize: 16, color: AppColors.textSecondary),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 32),
         TextField(
           controller: _emailController,
           keyboardType: TextInputType.emailAddress,
+          enabled: !_isLoading,
           decoration: InputDecoration(
             labelText: 'Email',
             hintText: 'Masukan alamat email',
@@ -240,10 +236,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         const SizedBox(height: 24),
         Text(
           'Kami telah mengirimkan link reset password ke:',
-          style: TextStyle(
-            fontSize: 16,
-            color: AppColors.textSecondary,
-          ),
+          style: TextStyle(fontSize: 16, color: AppColors.textSecondary),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 8),
@@ -260,10 +253,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         const Text(
           'Silakan cek email Anda dan klik link reset password. '
           'Link akan mengarahkan Anda ke halaman untuk membuat password baru.',
-          style: TextStyle(
-            fontSize: 14,
-            color: AppColors.textSecondary,
-          ),
+          style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 32),

@@ -8,12 +8,8 @@ class BarcodeScannerScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return BarcodeScannerWidget(
       onScan: (barcode) {
-        // Return barcode value to previous screen
         Navigator.pop(context, barcode);
       },
     );
   }
 }
-
-
-

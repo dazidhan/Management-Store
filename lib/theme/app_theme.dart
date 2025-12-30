@@ -10,7 +10,7 @@ class AppColors {
   static const Color background = Color(0xFFF8FAFC); // Light grey
   static const Color textPrimary = Color(0xFF0F172A); // Dark blue/black
   static const Color textSecondary = Color(0xFF64748B); // Medium blue-grey
-  
+
   // Additional colors for UI
   static const Color surface = Colors.white;
   static const Color border = Color(0xFFE2E8F0);
@@ -26,6 +26,21 @@ ThemeData getAppTheme() {
     scaffoldBackgroundColor: AppColors.background,
     primaryColor: AppColors.primary,
     fontFamily: GoogleFonts.plusJakartaSans().fontFamily,
+
+    // --- KONFIGURASI TEXT UTAMA ---
+    textTheme: const TextTheme(
+      bodyLarge: TextStyle(color: AppColors.textPrimary),
+      bodyMedium: TextStyle(color: AppColors.textPrimary),
+      titleLarge: TextStyle(
+        color: AppColors.textPrimary,
+        fontWeight: FontWeight.bold,
+      ),
+      titleMedium: TextStyle(
+        color: AppColors.textPrimary,
+        fontWeight: FontWeight.bold,
+      ),
+    ),
+
     colorScheme: const ColorScheme.light(
       primary: AppColors.primary,
       secondary: AppColors.secondary,
@@ -38,6 +53,7 @@ ThemeData getAppTheme() {
       onBackground: AppColors.textPrimary,
       onError: Colors.white,
     ),
+
     appBarTheme: const AppBarTheme(
       backgroundColor: AppColors.primary,
       elevation: 0,
@@ -49,6 +65,7 @@ ThemeData getAppTheme() {
         fontSize: 18,
       ),
     ),
+
     bottomNavigationBarTheme: const BottomNavigationBarThemeData(
       backgroundColor: AppColors.surface,
       selectedItemColor: AppColors.primary,
@@ -56,9 +73,16 @@ ThemeData getAppTheme() {
       type: BottomNavigationBarType.fixed,
       showUnselectedLabels: true,
     ),
+
+    // --- PERBAIKAN INPUT DECORATION ---
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: AppColors.surface,
+      labelStyle: const TextStyle(
+        color: AppColors.textSecondary,
+      ), // Warna Label
+      hintStyle: const TextStyle(color: AppColors.textSecondary), // Warna Hint
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: AppColors.border),
@@ -76,15 +100,14 @@ ThemeData getAppTheme() {
         borderSide: const BorderSide(color: AppColors.warning),
       ),
     ),
+
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     ),
   );

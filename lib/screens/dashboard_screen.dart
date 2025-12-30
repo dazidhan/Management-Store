@@ -1,99 +1,165 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:project_coba/screens/kasir_screen.dart';
+import 'package:intl/intl.dart';
 import '../theme/app_theme.dart';
 import '../services/database_service.dart';
-import 'package:intl/intl.dart';
-import 'analitik_screen.dart';
-import 'laporan_screen.dart';
-import 'barcode_scanner_screen.dart';
-import 'setup_store_screen.dart';
+import '../screens/kasir_screen.dart';
+import '../screens/analitik_screen.dart';
+import '../screens/laporan_screen.dart';
+import '../screens/barcode_scanner_screen.dart';
+import '../screens/setup_store_screen.dart';
+import '../screens/Transaction_detail_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
 
+  String _getGreeting() {
+    var hour = DateTime.now().hour;
+    if (hour < 11) return 'Selamat Pagi ☀️';
+    if (hour < 15) return 'Selamat Siang 🌤️';
+    if (hour < 18) return 'Selamat Sore 🌇';
+    return 'Selamat Malam 🌙';
+  }
+
   @override
   Widget build(BuildContext context) {
     final databaseService = DatabaseService();
+    final currencyFormat = NumberFormat.currency(
+      locale: 'id_ID',
+      symbol: 'Rp ',
+      decimalDigits: 0,
+    );
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Greeting & Store Name (Dynamic from Firestore)
-          const Text(
-            "Selamat Pagi 👋",
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+          Text(
+            _getGreeting(),
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 14,
+            ),
           ),
-          const SizedBox(height: 4),
-          
-          // StreamBuilder untuk Store Profile
+          const SizedBox(height: 8),
+
           StreamBuilder<DocumentSnapshot>(
             stream: databaseService.getStoreProfile(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Text(
-                  "Loading...",
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
+                return Container(
+                  height: 30,
+                  width: 150,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(8),
                   ),
                 );
               }
 
-              if (snapshot.hasError) {
-                return const Text(
-                  "Error",
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                );
+              if (snapshot.hasData &&
+                  snapshot.data != null &&
+                  snapshot.data!.exists) {
+                final storeData =
+                    snapshot.data!.data() as Map<String, dynamic>?;
+                final storeName = storeData?['storeName'] as String?;
+
+                if (storeName != null && storeName.isNotEmpty) {
+                  return Text(
+                    storeName,
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  );
+                }
               }
 
-              // Jika store profile tidak ada atau kosong
-              if (!snapshot.hasData || !snapshot.data!.exists) {
-                return _buildSetupStoreCard(context);
+              return _buildSetupStoreCard(context);
+            },
+          ),
+
+          const SizedBox(height: 24),
+
+          StreamBuilder<QuerySnapshot>(
+            stream: databaseService.getTransactions(),
+            builder: (context, trxSnapshot) {
+              double totalRevenue = 0;
+              int totalTrx = 0;
+
+              if (trxSnapshot.hasData) {
+                final docs = trxSnapshot.data!.docs;
+                totalTrx = docs.length;
+                for (var doc in docs) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  totalRevenue +=
+                      (data['totalPrice'] as num?)?.toDouble() ?? 0.0;
+                }
               }
 
-              // Tampilkan nama toko dari Firestore
-              final storeData = snapshot.data!.data() as Map<String, dynamic>?;
-              final storeName = storeData?['storeName'] as String? ?? 'Toko Saya';
+              return StreamBuilder<QuerySnapshot>(
+                stream: databaseService.getProducts(),
+                builder: (context, prodSnapshot) {
+                  int lowStockCount = 0;
+                  if (prodSnapshot.hasData) {
+                    lowStockCount = prodSnapshot.data!.docs.where((doc) {
+                      final d = doc.data() as Map<String, dynamic>;
+                      final stock = d['stock'] as int? ?? 0;
+                      final min = d['min_stock'] as int? ?? 5;
+                      return stock <= min;
+                    }).length;
+                  }
 
-              return Text(
-                storeName,
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
+                  final stats = [
+                    {
+                      'title': 'Pendapatan',
+                      'value': currencyFormat.format(totalRevenue),
+                      'icon': Icons.account_balance_wallet,
+                      'color': AppColors.info,
+                    },
+                    {
+                      'title': 'Transaksi',
+                      'value': '$totalTrx',
+                      'icon': Icons.shopping_cart,
+                      'color': AppColors.primary,
+                    },
+                    {
+                      'title': 'Stok Rendah',
+                      'value': '$lowStockCount Item',
+                      'icon': Icons.inventory_2,
+                      'color': AppColors.warning,
+                    },
+                    {
+                      'title': 'Pelanggan',
+                      'value': '$totalTrx',
+                      'icon': Icons.group,
+                      'color': AppColors.success,
+                    },
+                  ];
+
+                  return GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                          childAspectRatio: 1.6,
+                        ),
+                    itemCount: stats.length,
+                    itemBuilder: (context, index) =>
+                        _buildStatCard(stats[index]),
+                  );
+                },
               );
             },
           ),
+
           const SizedBox(height: 24),
 
-          // Stats Grid (TODO: Make dynamic from Firestore)
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 1.5,
-            ),
-            itemCount: 4,
-            itemBuilder: (context, index) {
-              // Placeholder stats - will be made dynamic later
-              return _buildStatCard(index);
-            },
-          ),
-          const SizedBox(height: 24),
-
-          // Aksi Cepat
           const Text(
             "Aksi Cepat",
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
@@ -106,59 +172,44 @@ class DashboardScreen extends StatelessWidget {
                 Icons.swap_horiz,
                 "Transaksi",
                 AppColors.primary,
-                () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const KasirScreen(),
-                    ),
-                  );
-                },
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const KasirScreen()),
+                ),
               ),
               _buildQuickAction(
                 Icons.qr_code_scanner,
                 "Scan",
                 AppColors.info,
-                () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const BarcodeScannerScreen(),
-                    ),
-                  );
-                },
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const BarcodeScannerScreen(),
+                  ),
+                ),
               ),
               _buildQuickAction(
                 Icons.assignment,
                 "Laporan",
                 AppColors.warning,
-                () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const LaporanScreen(),
-                    ),
-                  );
-                },
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LaporanScreen()),
+                ),
               ),
               _buildQuickAction(
                 Icons.bar_chart,
                 "Analitik",
                 AppColors.success,
-                () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const AnalitikScreen(),
-                    ),
-                  );
-                },
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AnalitikScreen()),
+                ),
               ),
             ],
           ),
           const SizedBox(height: 24),
 
-          // Transaksi Terakhir (Dynamic from Firestore)
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -167,7 +218,12 @@ class DashboardScreen extends StatelessWidget {
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
               TextButton(
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LaporanScreen()),
+                  );
+                },
                 child: const Text(
                   "Lihat Semua",
                   style: TextStyle(color: AppColors.primary),
@@ -175,46 +231,44 @@ class DashboardScreen extends StatelessWidget {
               ),
             ],
           ),
+
           StreamBuilder<QuerySnapshot>(
             stream: databaseService.getTransactions(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
               }
-
-              if (snapshot.hasError) {
-                return Center(
-                  child: Text('Error: ${snapshot.error}'),
-                );
-              }
-
               if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                 return const Center(
                   child: Padding(
-                    padding: EdgeInsets.all(32.0),
+                    padding: EdgeInsets.all(20.0),
                     child: Text(
-                      'Belum ada transaksi',
+                      "Belum ada transaksi",
                       style: TextStyle(color: AppColors.textSecondary),
                     ),
                   ),
                 );
               }
 
-              final transactions = snapshot.data!.docs.take(5).toList();
+              final docs = snapshot.data!.docs.take(5).toList();
 
               return ListView.separated(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                itemCount: transactions.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 8),
+                itemCount: docs.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
                 itemBuilder: (context, index) {
-                  final transaction = transactions[index];
-                  final data = transaction.data() as Map<String, dynamic>;
-                  return _buildTransactionItem(context, transaction.id, data);
+                  final doc = docs[index];
+                  return _buildTransactionItem(
+                    context,
+                    doc.id,
+                    doc.data() as Map<String, dynamic>,
+                  );
                 },
               );
             },
           ),
+          const SizedBox(height: 80),
         ],
       ),
     );
@@ -225,42 +279,66 @@ class DashboardScreen extends StatelessWidget {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (context) => const SetupStoreScreen(),
-          ),
+          MaterialPageRoute(builder: (context) => const SetupStoreScreen()),
         );
       },
       child: Container(
-        padding: const EdgeInsets.all(24),
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.primary.withOpacity(0.1),
+          gradient: const LinearGradient(
+            colors: [AppColors.primary, AppColors.secondary],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.primary, width: 2),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withOpacity(0.3),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
-        child: Column(
+        child: Row(
           children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.store_rounded,
+                color: Colors.white,
+                size: 28,
+              ),
+            ),
+            const SizedBox(width: 16),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Lengkapi Profil Toko",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    "Agar nama toko muncul di struk",
+                    style: TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
             const Icon(
-              Icons.store,
-              size: 48,
-              color: AppColors.primary,
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Setup Toko Kamu',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppColors.primary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Klik untuk mengatur nama dan alamat toko',
-              style: TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-              ),
-              textAlign: TextAlign.center,
+              Icons.arrow_forward_ios_rounded,
+              color: Colors.white,
+              size: 18,
             ),
           ],
         ),
@@ -268,16 +346,7 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStatCard(int index) {
-    final stats = [
-      {'title': 'Total Pendapatan', 'value': 'Rp 0', 'icon': Icons.account_balance_wallet, 'color': AppColors.info},
-      {'title': 'Transaksi', 'value': '0', 'icon': Icons.shopping_cart, 'color': AppColors.primary},
-      {'title': 'Stok Rendah', 'value': '0 Item', 'icon': Icons.inventory_2, 'color': AppColors.warning},
-      {'title': 'Pelanggan', 'value': '0', 'icon': Icons.group, 'color': AppColors.success},
-    ];
-
-    final stat = stats[index];
-
+  Widget _buildStatCard(Map<String, dynamic> stat) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -285,7 +354,7 @@ class DashboardScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
         boxShadow: const [
-          BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
+          BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
         ],
       ),
       child: Column(
@@ -296,25 +365,30 @@ class DashboardScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    stat['title'] as String,
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 11,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      stat['title'] as String,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 11,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    stat['value'] as String,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
+                    const SizedBox(height: 4),
+                    Text(
+                      stat['value'] as String,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: AppColors.textPrimary,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               Container(
                 padding: const EdgeInsets.all(6),
@@ -322,7 +396,11 @@ class DashboardScreen extends StatelessWidget {
                   color: (stat['color'] as Color).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(stat['icon'] as IconData, color: stat['color'] as Color, size: 18),
+                child: Icon(
+                  stat['icon'] as IconData,
+                  color: stat['color'] as Color,
+                  size: 18,
+                ),
               ),
             ],
           ),
@@ -373,36 +451,36 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTransactionItem(BuildContext context, String transactionId, Map<String, dynamic> data) {
-    final currencyFormat = NumberFormat.currency(
+  Widget _buildTransactionItem(
+    BuildContext context,
+    String id,
+    Map<String, dynamic> data,
+  ) {
+    final total = (data['totalPrice'] as num?)?.toDouble() ?? 0.0;
+    final currency = NumberFormat.currency(
       locale: 'id_ID',
       symbol: 'Rp ',
       decimalDigits: 0,
     );
 
-    final customerName = data['customerName'] as String? ?? 'Pelanggan Umum';
-    final totalPrice = (data['totalPrice'] as num?)?.toDouble() ?? 0.0;
-    final items = data['items'] as List<dynamic>? ?? [];
-    final totalItems = items.fold<int>(0, (sum, item) => sum + ((item as Map)['qty'] as int? ?? 0));
-    
-    // Format timestamp
-    String timeStr = 'Hari ini';
-    if (data['createdAt'] != null) {
-      final timestamp = data['createdAt'] as Timestamp;
-      final date = timestamp.toDate();
-      final now = DateTime.now();
-      if (date.year == now.year && date.month == now.month && date.day == now.day) {
-        timeStr = 'Hari ini, ${DateFormat('HH:mm').format(date)}';
-      } else {
-        timeStr = DateFormat('dd MMM, HH:mm').format(date);
-      }
+    DateTime date;
+    if (data['createdAt'] == null) {
+      date = DateTime.now();
+    } else if (data['createdAt'] is Timestamp) {
+      date = (data['createdAt'] as Timestamp).toDate();
+    } else {
+      date = DateTime.now();
     }
+    final timeStr = DateFormat('dd MMM, HH:mm').format(date);
 
     return InkWell(
-      onTap: () {
-        // Navigate to transaction detail
-        // TODO: Create transaction detail from Firestore data
-      },
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) =>
+              TransactionDetailScreen(transactionId: id, transactionData: data),
+        ),
+      ),
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.all(12),
@@ -414,15 +492,14 @@ class DashboardScreen extends StatelessWidget {
         child: Row(
           children: [
             Container(
-              width: 40,
-              height: 40,
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: AppColors.secondary,
-                borderRadius: BorderRadius.circular(10),
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(
                 Icons.receipt_long,
-                color: Colors.white,
+                color: AppColors.primary,
                 size: 20,
               ),
             ),
@@ -432,14 +509,15 @@ class DashboardScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    customerName,
+                    data['customerName'] ?? 'Pelanggan Umum',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 13,
+                      color: AppColors.textPrimary,
                     ),
                   ),
                   Text(
-                    "$totalItems item • $timeStr",
+                    timeStr,
                     style: const TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 11,
@@ -452,10 +530,11 @@ class DashboardScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  currencyFormat.format(totalPrice),
+                  currency.format(total),
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
+                    color: AppColors.textPrimary,
                   ),
                 ),
                 Container(

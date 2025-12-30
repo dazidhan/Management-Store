@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme/app_theme.dart';
-import '../models/dummy_data.dart';
 
 class TransactionDetailScreen extends StatelessWidget {
-  final Transaction transaction;
+  final String transactionId;
+  final Map<String, dynamic> transactionData;
 
-  const TransactionDetailScreen({super.key, required this.transaction});
+  const TransactionDetailScreen({
+    super.key,
+    required this.transactionId,
+    required this.transactionData,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -16,14 +21,37 @@ class TransactionDetailScreen extends StatelessWidget {
       decimalDigits: 0,
     );
 
+    final customerName = transactionData['customerName'] ?? 'Pelanggan Umum';
+    final totalPrice = (transactionData['totalPrice'] ?? 0).toDouble();
+    final items = (transactionData['items'] as List<dynamic>? ?? []);
+
+    DateTime date;
+    if (transactionData['createdAt'] == null) {
+      date = DateTime.now();
+    } else if (transactionData['createdAt'] is Timestamp) {
+      date = (transactionData['createdAt'] as Timestamp).toDate();
+    } else {
+      date = DateTime.now();
+    }
+    final dateStr = DateFormat('dd MMMM yyyy, HH:mm').format(date);
+
+    int totalItems = 0;
+    for (var item in items) {
+      totalItems += (item['qty'] as int? ?? 0);
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text("Detail Transaksi"), centerTitle: true),
+      appBar: AppBar(
+        title: const Text("Detail Transaksi"),
+        centerTitle: true,
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            // 1. Header Status
             Container(
               padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
               decoration: BoxDecoration(
@@ -56,32 +84,33 @@ class TransactionDetailScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    currencyFormat.format(transaction.totalPrice),
+                    currencyFormat.format(totalPrice),
                     style: const TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      color: AppColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 24),
                   const Divider(color: AppColors.border),
                   const SizedBox(height: 16),
 
-                  // Info Dasar
-                  _buildRowInfo("Waktu", transaction.time),
+                  _buildRowInfo("Waktu", dateStr),
                   const SizedBox(height: 12),
-                  _buildRowInfo("Invoice ID", transaction.id),
+                  _buildRowInfo(
+                    "Invoice ID",
+                    "#${transactionId.substring(0, 8).toUpperCase()}",
+                  ),
                   const SizedBox(height: 12),
-                  _buildRowInfo("Kasir", "Dhaffa Zikrullah"), // Hardcode dulu
+                  _buildRowInfo("Kasir", "Admin Toko"),
                   const SizedBox(height: 12),
-                  _buildRowInfo("Pelanggan", transaction.customerName),
+                  _buildRowInfo("Pelanggan", customerName),
                 ],
               ),
             ),
 
             const SizedBox(height: 20),
 
-            // 2. Daftar Item
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -94,13 +123,20 @@ class TransactionDetailScreen extends StatelessWidget {
                 children: [
                   const Text(
                     "Rincian Pesanan",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                   const SizedBox(height: 16),
 
-                  // List Barang
-                  ...transaction.items.map(
-                    (item) => Padding(
+                  ...items.map((item) {
+                    final name = item['name'] ?? 'Produk';
+                    final qty = item['qty'] ?? 0;
+                    final price = (item['price'] ?? 0).toDouble();
+
+                    return Padding(
                       padding: const EdgeInsets.only(bottom: 16),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -108,7 +144,7 @@ class TransactionDetailScreen extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: AppColors.secondary,
+                              color: AppColors.background,
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: const Text(
@@ -122,15 +158,16 @@ class TransactionDetailScreen extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  item.name,
+                                  name,
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w600,
                                     fontSize: 14,
+                                    color: AppColors.textPrimary,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  "${item.qty} x ${currencyFormat.format(item.price)}",
+                                  "$qty x ${currencyFormat.format(price)}",
                                   style: const TextStyle(
                                     color: AppColors.textSecondary,
                                     fontSize: 12,
@@ -140,21 +177,21 @@ class TransactionDetailScreen extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            currencyFormat.format(item.price * item.qty),
+                            currencyFormat.format(price * qty),
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 14,
+                              color: AppColors.textPrimary,
                             ),
                           ),
                         ],
                       ),
-                    ),
-                  ),
+                    );
+                  }),
 
                   const Divider(color: AppColors.border),
                   const SizedBox(height: 12),
 
-                  // Total Bawah
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -163,8 +200,11 @@ class TransactionDetailScreen extends StatelessWidget {
                         style: TextStyle(color: AppColors.textSecondary),
                       ),
                       Text(
-                        "${transaction.totalItemCount} Barang",
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        "$totalItems Barang",
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
                     ],
                   ),
@@ -177,7 +217,7 @@ class TransactionDetailScreen extends StatelessWidget {
                         style: TextStyle(color: AppColors.textSecondary),
                       ),
                       Text(
-                        currencyFormat.format(transaction.totalPrice),
+                        currencyFormat.format(totalPrice),
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           color: AppColors.primary,
@@ -191,7 +231,6 @@ class TransactionDetailScreen extends StatelessWidget {
 
             const SizedBox(height: 24),
 
-            // 3. Tombol Aksi
             Row(
               children: [
                 Expanded(
@@ -200,7 +239,7 @@ class TransactionDetailScreen extends StatelessWidget {
                     icon: const Icon(Icons.share_outlined),
                     label: const Text("Bagikan"),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.white,
+                      foregroundColor: AppColors.primary,
                       side: const BorderSide(color: AppColors.border),
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
@@ -243,7 +282,11 @@ class TransactionDetailScreen extends StatelessWidget {
         ),
         Text(
           value,
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+            color: AppColors.textPrimary,
+          ),
         ),
       ],
     );

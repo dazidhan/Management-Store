@@ -36,7 +36,6 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text,
         password: _passwordController.text,
       );
-      // Navigation will be handled by AuthGate
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -58,7 +57,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       await _authService.signInWithGoogle();
-      // Navigation will be handled by AuthGate
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -89,7 +87,6 @@ class _LoginScreenState extends State<LoginScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              // Header Section
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 40, 24, 0),
                 child: Column(
@@ -106,16 +103,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 8),
                     const Text(
                       'Selamat datang di Kasirly',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.white,
-                      ),
+                      style: TextStyle(fontSize: 16, color: Colors.white),
                     ),
                   ],
                 ),
               ),
 
-              // Content Card
               Expanded(
                 child: Container(
                   margin: const EdgeInsets.only(top: 40),
@@ -134,7 +127,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           const SizedBox(height: 16),
-                          // Title
                           const Text(
                             'Login',
                             style: TextStyle(
@@ -145,7 +137,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           const SizedBox(height: 32),
 
-                          // Email Field
                           TextFormField(
                             controller: _emailController,
                             keyboardType: TextInputType.emailAddress,
@@ -170,7 +161,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           const SizedBox(height: 16),
 
-                          // Password Field
                           TextFormField(
                             controller: _passwordController,
                             obscureText: _obscurePassword,
@@ -207,7 +197,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           const SizedBox(height: 8),
 
-                          // Forgot Password Link
                           Align(
                             alignment: Alignment.centerRight,
                             child: TextButton(
@@ -231,7 +220,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           const SizedBox(height: 24),
 
-                          // Login Button
                           ElevatedButton(
                             onPressed: _isLoading ? null : _handleLogin,
                             style: ElevatedButton.styleFrom(
@@ -248,9 +236,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                     width: 20,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
-                                      valueColor:
-                                          AlwaysStoppedAnimation<Color>(
-                                              Colors.white),
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
                                     ),
                                   )
                                 : const Text(
@@ -263,7 +251,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           const SizedBox(height: 32),
 
-                          // Social Login Separator
                           Row(
                             children: [
                               Expanded(
@@ -273,8 +260,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                               ),
                               Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 16),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                ),
                                 child: Text(
                                   'Masuk dengan',
                                   style: TextStyle(
@@ -293,11 +281,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           const SizedBox(height: 24),
 
-                          // Social Login Icons - Only Google
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              // Google
                               _buildSocialIcon(
                                 icon: Icons.g_mobiledata,
                                 color: Colors.transparent,
@@ -328,7 +314,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           const SizedBox(height: 32),
 
-                          // Sign Up Link
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
@@ -382,23 +367,14 @@ class _LoginScreenState extends State<LoginScreen> {
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: child ??
+      child:
+          child ??
           Container(
             width: 48,
             height: 48,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: color,
-            ),
-            child: Icon(
-              icon,
-              color: Colors.white,
-              size: 24,
-            ),
+            decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+            child: Icon(icon, color: Colors.white, size: 24),
           ),
     );
   }
 }
-
-
-

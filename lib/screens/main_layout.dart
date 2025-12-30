@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
-import 'dashboard_screen.dart';
-import 'kasir_screen.dart';
-import 'stock_screen.dart';
-import 'karyawan_screen.dart';
+import '../screens/dashboard_screen.dart';
+import '../screens/kasir_screen.dart';
+import '../screens/stock_screen.dart';
+import '../screens/karyawan_screen.dart';
 
 class MainLayout extends StatefulWidget {
   const MainLayout({super.key});
@@ -24,7 +24,6 @@ class _MainLayoutState extends State<MainLayout> {
     const KaryawanScreen(),
   ];
 
-  // Fungsi untuk menampilkan Dialog Konfirmasi Logout
   void _showLogoutDialog() {
     showDialog(
       context: context,
@@ -41,7 +40,7 @@ class _MainLayoutState extends State<MainLayout> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context), // Tutup dialog
+            onPressed: () => Navigator.pop(context),
             child: const Text(
               "Batal",
               style: TextStyle(color: AppColors.textSecondary),
@@ -49,10 +48,9 @@ class _MainLayoutState extends State<MainLayout> {
           ),
           TextButton(
             onPressed: () async {
-              Navigator.pop(context); // Tutup dialog
+              Navigator.pop(context);
               try {
                 await _authService.signOut();
-                // Navigation will be handled by AuthGate
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -88,7 +86,6 @@ class _MainLayoutState extends State<MainLayout> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // AppBar hanya muncul di halaman Dashboard (Index 0)
       appBar: _selectedIndex == 0
           ? AppBar(
               title: Row(
@@ -116,9 +113,8 @@ class _MainLayoutState extends State<MainLayout> {
                 ],
               ),
               actions: [
-                // TOMBOL LOGOUT
                 IconButton(
-                  onPressed: _showLogoutDialog, // Panggil fungsi dialog
+                  onPressed: _showLogoutDialog,
                   icon: const Icon(
                     Icons.logout_rounded,
                     color: AppColors.warning,

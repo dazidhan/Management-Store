@@ -5,25 +5,45 @@ import '../theme/app_theme.dart';
 class BarcodeScannerWidget extends StatefulWidget {
   final Function(String) onScan;
 
-  const BarcodeScannerWidget({
-    super.key,
-    required this.onScan,
-  });
+  const BarcodeScannerWidget({super.key, required this.onScan});
 
   @override
   State<BarcodeScannerWidget> createState() => _BarcodeScannerWidgetState();
 }
 
-class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget> {
+// Tambahkan WidgetsBindingObserver untuk memantau Lifecycle App
+class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget>
+    with WidgetsBindingObserver {
   final MobileScannerController _controller = MobileScannerController(
     detectionSpeed: DetectionSpeed.noDuplicates,
     facing: CameraFacing.back,
+    torchEnabled: false,
   );
 
   bool _isScanning = true;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _controller.start();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Matikan kamera jika aplikasi diminimize/background
+    if (!_controller.value.isInitialized) return;
+    if (state == AppLifecycleState.inactive) {
+      _controller.stop();
+    } else if (state == AppLifecycleState.resumed) {
+      _controller.start();
+    }
+    super.didChangeAppLifecycleState(state);
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _controller.dispose();
     super.dispose();
   }
@@ -36,10 +56,8 @@ class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget> {
       final String barcodeValue = barcodes.first.rawValue ?? '';
       if (barcodeValue.isNotEmpty) {
         setState(() => _isScanning = false);
+        _controller.stop(); // Stop scanning immediately
         widget.onScan(barcodeValue);
-        if (mounted) {
-          Navigator.pop(context, barcodeValue);
-        }
       }
     }
   }
@@ -53,26 +71,29 @@ class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget> {
         foregroundColor: Colors.white,
         actions: [
           IconButton(
-            icon: const Icon(Icons.flash_off, color: Colors.white),
+            icon: ValueListenableBuilder(
+              valueListenable: _controller,
+              builder: (context, state, child) {
+                return Icon(
+                  state.torchState == TorchState.on
+                      ? Icons.flash_on
+                      : Icons.flash_off,
+                  color: Colors.white,
+                );
+              },
+            ),
             onPressed: () => _controller.toggleTorch(),
           ),
           IconButton(
-            icon: const Icon(Icons.camera_rear, color: Colors.white),
+            icon: const Icon(Icons.cameraswitch, color: Colors.white),
             onPressed: () => _controller.switchCamera(),
           ),
         ],
       ),
       body: Stack(
         children: [
-          MobileScanner(
-            controller: _controller,
-            onDetect: _handleBarcode,
-          ),
-          // Overlay with scanning area
-          CustomPaint(
-            painter: BarcodeScannerOverlay(),
-          ),
-          // Instructions
+          MobileScanner(controller: _controller, onDetect: _handleBarcode),
+          CustomPaint(painter: BarcodeScannerOverlay(), child: Container()),
           Positioned(
             bottom: 100,
             left: 0,
@@ -108,10 +129,8 @@ class BarcodeScannerOverlay extends CustomPainter {
       ..color = Colors.black.withOpacity(0.5)
       ..style = PaintingStyle.fill;
 
-    final path = Path()
-      ..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
+    final path = Path()..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
 
-    // Scanning area (center rectangle)
     final scanAreaSize = size.width * 0.7;
     final scanAreaLeft = (size.width - scanAreaSize) / 2;
     final scanAreaTop = (size.height - scanAreaSize) / 2;
@@ -122,84 +141,21 @@ class BarcodeScannerOverlay extends CustomPainter {
       scanAreaSize,
     );
 
-    // Create a path that excludes the scanning area
-    final scanPath = Path()
-      ..addRect(scanArea);
+    final scanPath = Path()..addRect(scanArea);
     path.addPath(scanPath, Offset.zero);
     canvas.drawPath(
-      Path.combine(
-        PathOperation.difference,
-        path,
-        scanPath,
-      ),
+      Path.combine(PathOperation.difference, path, scanPath),
       paint,
     );
 
-    // Draw border around scanning area
     final borderPaint = Paint()
       ..color = AppColors.primary
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3;
 
     canvas.drawRect(scanArea, borderPaint);
-
-    // Draw corner indicators
-    final cornerLength = 20.0;
-    final cornerPaint = Paint()
-      ..color = AppColors.primary
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 4;
-
-    // Top-left corner
-    canvas.drawLine(
-      Offset(scanAreaLeft, scanAreaTop),
-      Offset(scanAreaLeft + cornerLength, scanAreaTop),
-      cornerPaint,
-    );
-    canvas.drawLine(
-      Offset(scanAreaLeft, scanAreaTop),
-      Offset(scanAreaLeft, scanAreaTop + cornerLength),
-      cornerPaint,
-    );
-
-    // Top-right corner
-    canvas.drawLine(
-      Offset(scanAreaLeft + scanAreaSize, scanAreaTop),
-      Offset(scanAreaLeft + scanAreaSize - cornerLength, scanAreaTop),
-      cornerPaint,
-    );
-    canvas.drawLine(
-      Offset(scanAreaLeft + scanAreaSize, scanAreaTop),
-      Offset(scanAreaLeft + scanAreaSize, scanAreaTop + cornerLength),
-      cornerPaint,
-    );
-
-    // Bottom-left corner
-    canvas.drawLine(
-      Offset(scanAreaLeft, scanAreaTop + scanAreaSize),
-      Offset(scanAreaLeft + cornerLength, scanAreaTop + scanAreaSize),
-      cornerPaint,
-    );
-    canvas.drawLine(
-      Offset(scanAreaLeft, scanAreaTop + scanAreaSize),
-      Offset(scanAreaLeft, scanAreaTop + scanAreaSize - cornerLength),
-      cornerPaint,
-    );
-
-    // Bottom-right corner
-    canvas.drawLine(
-      Offset(scanAreaLeft + scanAreaSize, scanAreaTop + scanAreaSize),
-      Offset(scanAreaLeft + scanAreaSize - cornerLength, scanAreaTop + scanAreaSize),
-      cornerPaint,
-    );
-    canvas.drawLine(
-      Offset(scanAreaLeft + scanAreaSize, scanAreaTop + scanAreaSize),
-      Offset(scanAreaLeft + scanAreaSize, scanAreaTop + scanAreaSize - cornerLength),
-      cornerPaint,
-    );
   }
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
-

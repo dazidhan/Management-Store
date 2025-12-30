@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../theme/app_theme.dart';
 import '../services/database_service.dart';
-import 'barcode_scanner_screen.dart';
+import '../screens/barcode_scanner_screen.dart';
 
 class KasirScreen extends StatefulWidget {
   const KasirScreen({super.key});
@@ -17,14 +17,14 @@ class _KasirScreenState extends State<KasirScreen> {
   String _selectedCategory = 'Semua';
   final _databaseService = DatabaseService();
 
-  // State Keranjang Belanja
-  final Map<String, Map<String, dynamic>> _cart = {}; // Map Product ID -> {productData, qty}
+  final Map<String, Map<String, dynamic>> _cart = {};
 
   final _currencyFormat = NumberFormat.currency(
     locale: 'id_ID',
     symbol: 'Rp ',
     decimalDigits: 0,
   );
+
   final List<String> _categories = [
     'Semua',
     'Makanan',
@@ -33,10 +33,59 @@ class _KasirScreenState extends State<KasirScreen> {
     'Dapur',
   ];
 
-  // Controller untuk nama pelanggan
   final TextEditingController _customerNameController = TextEditingController(
     text: "Pelanggan Umum",
   );
+
+  Future<void> _processPayment(int totalItems, double totalPrice) async {
+    final cartSnapshot = Map<String, Map<String, dynamic>>.from(_cart);
+    final customerNameSnapshot = _customerNameController.text.trim();
+
+    setState(() {
+      _cart.clear();
+      _customerNameController.text = "Pelanggan Umum";
+    });
+
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: AppColors.success,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(20),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        content: const Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.white),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                "Pembayaran Berhasil!",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      await _databaseService.processCheckout(
+        cartItems: cartSnapshot,
+        customerName: customerNameSnapshot,
+        totalPrice: totalPrice,
+        totalItems: totalItems,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal menyimpan ke database: ${e.toString()}'),
+            backgroundColor: AppColors.warning,
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +94,6 @@ class _KasirScreenState extends State<KasirScreen> {
         children: [
           Column(
             children: [
-              // 1. Search & Category Filter
               Container(
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -77,11 +125,11 @@ class _KasirScreenState extends State<KasirScreen> {
                             final result = await Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const BarcodeScannerScreen(),
+                                builder: (context) =>
+                                    const BarcodeScannerScreen(),
                               ),
                             );
                             if (result != null && result is String) {
-                              // Search by barcode
                               _searchByBarcode(result);
                             }
                           },
@@ -123,7 +171,6 @@ class _KasirScreenState extends State<KasirScreen> {
                 ),
               ),
 
-              // 2. Product Grid (Dynamic from Firestore)
               Expanded(
                 child: StreamBuilder<QuerySnapshot>(
                   stream: _databaseService.getProducts(),
@@ -131,13 +178,9 @@ class _KasirScreenState extends State<KasirScreen> {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return const Center(child: CircularProgressIndicator());
                     }
-
                     if (snapshot.hasError) {
-                      return Center(
-                        child: Text('Error: ${snapshot.error}'),
-                      );
+                      return Center(child: Text('Error: ${snapshot.error}'));
                     }
-
                     if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                       return const Center(
                         child: Text(
@@ -147,22 +190,25 @@ class _KasirScreenState extends State<KasirScreen> {
                       );
                     }
 
-                    // Filter products
                     final allProducts = snapshot.data!.docs;
                     final filteredProducts = allProducts.where((doc) {
                       final data = doc.data() as Map<String, dynamic>;
-                      final name = (data['name'] as String? ?? '').toLowerCase();
+                      final name = (data['name'] as String? ?? '')
+                          .toLowerCase();
                       final category = data['category'] as String? ?? '';
-                      final matchesSearch = name.contains(_searchQuery.toLowerCase());
+                      final matchesSearch = name.contains(
+                        _searchQuery.toLowerCase(),
+                      );
                       final matchesCategory =
-                          _selectedCategory == 'Semua' || category == _selectedCategory;
+                          _selectedCategory == 'Semua' ||
+                          category == _selectedCategory;
                       return matchesSearch && matchesCategory;
                     }).toList();
 
                     if (filteredProducts.isEmpty) {
                       return const Center(
                         child: Text(
-                          "Tidak ada produk yang cocok",
+                          "Produk tidak ditemukan",
                           style: TextStyle(color: AppColors.textSecondary),
                         ),
                       );
@@ -172,11 +218,11 @@ class _KasirScreenState extends State<KasirScreen> {
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 250),
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        childAspectRatio: 0.85,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                      ),
+                            crossAxisCount: 2,
+                            childAspectRatio: 0.85,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                          ),
                       itemCount: filteredProducts.length,
                       itemBuilder: (context, index) {
                         final doc = filteredProducts[index];
@@ -190,7 +236,6 @@ class _KasirScreenState extends State<KasirScreen> {
             ],
           ),
 
-          // 3. Floating Cart
           if (_cart.isNotEmpty) _buildCartSummary(),
         ],
       ),
@@ -202,28 +247,60 @@ class _KasirScreenState extends State<KasirScreen> {
       final productDoc = await _databaseService.getProductByBarcode(barcode);
       if (productDoc != null && productDoc.exists) {
         final productData = productDoc.data() as Map<String, dynamic>;
-        final productId = productDoc.id;
-        _addToCart(productId, productData);
+        _addToCart(productDoc.id, productData);
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Produk dengan barcode tersebut tidak ditemukan'),
+              content: Text('Produk tidak ditemukan'),
               backgroundColor: AppColors.warning,
             ),
           );
         }
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString()}'),
-            backgroundColor: AppColors.warning,
-          ),
-        );
-      }
+      // Handle error
     }
+  }
+
+  void _addToCart(String productId, Map<String, dynamic> productData) {
+    final stock = (productData['stock'] as int?) ?? 0;
+    final currentQty = _cart[productId]?['qty'] ?? 0;
+
+    if (currentQty >= stock) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Stok Habis / Maksimal!"),
+          duration: Duration(milliseconds: 500),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      if (_cart.containsKey(productId)) {
+        _cart[productId]!['qty'] = (_cart[productId]!['qty'] as int) + 1;
+      } else {
+        _cart[productId] = {
+          'name': productData['name'],
+          'price': productData['price'],
+          'qty': 1,
+        };
+      }
+    });
+  }
+
+  void _updateQty(String productId, int delta) {
+    setState(() {
+      if (_cart.containsKey(productId)) {
+        int newQty = (_cart[productId]!['qty'] as int) + delta;
+        if (newQty <= 0) {
+          _cart.remove(productId);
+        } else {
+          _cart[productId]!['qty'] = newQty;
+        }
+      }
+    });
   }
 
   Widget _buildProductCard(String productId, Map<String, dynamic> productData) {
@@ -301,7 +378,6 @@ class _KasirScreenState extends State<KasirScreen> {
                 fontWeight: FontWeight.bold,
                 fontSize: 14,
                 color: AppColors.textPrimary,
-                height: 1.2,
               ),
             ),
             const SizedBox(height: 4),
@@ -330,12 +406,9 @@ class _KasirScreenState extends State<KasirScreen> {
   Widget _buildCartSummary() {
     double totalPrice = 0;
     int totalItems = 0;
-
     _cart.forEach((key, value) {
-      final price = (value['price'] as num?)?.toDouble() ?? 0.0;
-      final qty = value['qty'] as int? ?? 0;
-      totalPrice += price * qty;
-      totalItems += qty;
+      totalPrice += (value['price'] as num) * (value['qty'] as int);
+      totalItems += (value['qty'] as int);
     });
 
     return Positioned(
@@ -367,11 +440,12 @@ class _KasirScreenState extends State<KasirScreen> {
                 separatorBuilder: (_, __) => const SizedBox(height: 16),
                 itemBuilder: (context, index) {
                   String key = _cart.keys.elementAt(index);
-                  Map<String, dynamic> value = _cart[key]!;
-                  final name = value['name'] as String? ?? '';
-                  final price = (value['price'] as num?)?.toDouble() ?? 0.0;
-                  final qty = value['qty'] as int? ?? 0;
-                  return _buildCartItemRow(key, name, price, qty);
+                  return _buildCartItemRow(
+                    key,
+                    _cart[key]!['name'],
+                    _cart[key]!['price'],
+                    _cart[key]!['qty'],
+                  );
                 },
               ),
             ),
@@ -387,9 +461,7 @@ class _KasirScreenState extends State<KasirScreen> {
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
-                    _showCheckoutModal(totalItems, totalPrice);
-                  },
+                  onPressed: () => _showCheckoutModal(totalItems, totalPrice),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
@@ -397,7 +469,6 @@ class _KasirScreenState extends State<KasirScreen> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    elevation: 0,
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -422,7 +493,12 @@ class _KasirScreenState extends State<KasirScreen> {
     );
   }
 
-  Widget _buildCartItemRow(String productId, String name, double price, int qty) {
+  Widget _buildCartItemRow(
+    String productId,
+    String name,
+    double price,
+    int qty,
+  ) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -559,13 +635,6 @@ class _KasirScreenState extends State<KasirScreen> {
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
                   ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(
-                      color: AppColors.primary,
-                      width: 1.5,
-                    ),
-                  ),
                 ),
               ),
               const SizedBox(height: 24),
@@ -624,6 +693,7 @@ class _KasirScreenState extends State<KasirScreen> {
                 child: ElevatedButton(
                   onPressed: () {
                     Navigator.pop(context);
+
                     _processPayment(totalItems, totalPrice);
                   },
                   style: ElevatedButton.styleFrom(
@@ -645,120 +715,5 @@ class _KasirScreenState extends State<KasirScreen> {
         );
       },
     );
-  }
-
-  Future<void> _processPayment(int totalItems, double totalPrice) async {
-    try {
-      // Prepare transaction items
-      final List<Map<String, dynamic>> items = [];
-      _cart.forEach((productId, value) {
-        items.add({
-          'productId': productId,
-          'name': value['name'] as String? ?? '',
-          'price': value['price'] as num? ?? 0.0,
-          'qty': value['qty'] as int? ?? 0,
-        });
-      });
-
-      // Save transaction to Firestore
-      await _databaseService.addTransaction({
-        'customerName': _customerNameController.text.trim(),
-        'totalPrice': totalPrice,
-        'totalItems': totalItems,
-        'items': items,
-        'status': 'completed',
-      });
-
-      // Update product stock
-      for (var entry in _cart.entries) {
-        final productId = entry.key;
-        final qty = entry.value['qty'] as int? ?? 0;
-        final productDoc = await _databaseService.getProduct(productId);
-        if (productDoc != null && productDoc.exists) {
-          final productData = productDoc.data() as Map<String, dynamic>;
-          final currentStock = (productData['stock'] as int?) ?? 0;
-          await _databaseService.updateProduct(productId, {
-            'stock': currentStock - qty,
-          });
-        }
-      }
-
-      setState(() {
-        _cart.clear();
-        _customerNameController.text = "Pelanggan Umum";
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: AppColors.success,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.white),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    "Transaksi ${_customerNameController.text} Berhasil!",
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString()}'),
-            backgroundColor: AppColors.warning,
-          ),
-        );
-      }
-    }
-  }
-
-  void _addToCart(String productId, Map<String, dynamic> productData) {
-    final stock = (productData['stock'] as int?) ?? 0;
-    final currentQty = _cart[productId]?['qty'] ?? 0;
-
-    if (currentQty >= stock) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Stok Maksimal!"),
-          duration: Duration(milliseconds: 500),
-        ),
-      );
-      return;
-    }
-
-    setState(() {
-      if (_cart.containsKey(productId)) {
-        _cart[productId]!['qty'] = (_cart[productId]!['qty'] as int) + 1;
-      } else {
-        _cart[productId] = {
-          'name': productData['name'],
-          'price': productData['price'],
-          'qty': 1,
-        };
-      }
-    });
-  }
-
-  void _updateQty(String productId, int delta) {
-    setState(() {
-      if (_cart.containsKey(productId)) {
-        int newQty = (_cart[productId]!['qty'] as int) + delta;
-        if (newQty <= 0) {
-          _cart.remove(productId);
-        } else {
-          // Check stock limit
-          // Note: We'd need to fetch current stock, but for simplicity we'll allow it
-          _cart[productId]!['qty'] = newQty;
-        }
-      }
-    });
   }
 }

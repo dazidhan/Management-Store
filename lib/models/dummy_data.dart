@@ -2,7 +2,7 @@ class StatItem {
   final String title;
   final String value;
   final String change;
-  final String type; // positive, negative
+  final String type;
   final String icon;
 
   StatItem(this.title, this.value, this.change, this.type, this.icon);
@@ -13,7 +13,7 @@ class Transaction {
   final String customerName;
   final String time;
   final double totalPrice;
-  final List<TransactionItemDetail> items; // List barang yang dibeli
+  final List<TransactionItemDetail> items;
 
   Transaction(
     this.id,
@@ -23,14 +23,13 @@ class Transaction {
     this.items,
   );
 
-  // Helper untuk menghitung total item
   int get totalItemCount => items.fold(0, (sum, item) => sum + item.qty);
 }
 
 class TransactionItemDetail {
   final String name;
   final int qty;
-  final double price; // Harga satuan
+  final double price;
 
   TransactionItemDetail({
     required this.name,
@@ -65,7 +64,7 @@ class Employee {
   final String role;
   final String status;
   final String phone;
-  final String email; // <--- TAMBAHAN BARU
+  final String email;
   final String joinedAt;
 
   Employee({
@@ -74,12 +73,11 @@ class Employee {
     required this.role,
     required this.status,
     required this.phone,
-    required this.email, // <--- TAMBAHAN BARU
+    required this.email,
     required this.joinedAt,
   });
 }
 
-// Data Dummy Karyawan (Update isinya)
 List<Employee> dummyEmployees = [
   Employee(
     id: '1',
@@ -87,7 +85,7 @@ List<Employee> dummyEmployees = [
     role: 'Kasir',
     status: 'active',
     phone: '081234567890',
-    email: 'siti.aminah@tokoku.com', // <--- DATA BARU
+    email: 'siti.aminah@tokoku.com',
     joinedAt: '2023-01-15',
   ),
   Employee(
@@ -96,7 +94,7 @@ List<Employee> dummyEmployees = [
     role: 'Gudang',
     status: 'cuti',
     phone: '085678901234',
-    email: 'budi.santoso@tokoku.com', // <--- DATA BARU
+    email: 'budi.santoso@tokoku.com',
     joinedAt: '2023-03-10',
   ),
   Employee(
@@ -105,13 +103,11 @@ List<Employee> dummyEmployees = [
     role: 'Supervisor',
     status: 'active',
     phone: '081345678901',
-    email: 'rina.wati@tokoku.com', // <--- DATA BARU
+    email: 'rina.wati@tokoku.com',
     joinedAt: '2022-11-05',
   ),
 ];
 
-// Data Dummy Produk (Mutable agar bisa ditambah/hapus)
-// Update data agar sesuai screenshot
 List<Product> dummyProducts = [
   Product(
     id: '1',
@@ -169,7 +165,6 @@ List<Product> dummyProducts = [
   ),
 ];
 
-// Data Dummy
 final List<StatItem> dummyStats = [
   StatItem('Total Pendapatan', 'Rp 2.5jt', '+12.5%', 'positive', 'wallet'),
   StatItem('Transaksi', '48', '+5%', 'positive', 'cart'),
