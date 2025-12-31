@@ -14,11 +14,10 @@ class KasirScreen extends StatefulWidget {
 
 class _KasirScreenState extends State<KasirScreen> {
   String _searchQuery = '';
-  String _selectedCategory = 'Semua';
+  String _selectedCategory = 'Semua'; // Default filter
   final _databaseService = DatabaseService();
 
   // State Keranjang Belanja
-  // Structure: { productId: { 'name': String, 'price': double, 'qty': int, 'maxStock': int } }
   final Map<String, Map<String, dynamic>> _cart = {};
 
   final _currencyFormat = NumberFormat.currency(
@@ -27,19 +26,11 @@ class _KasirScreenState extends State<KasirScreen> {
     decimalDigits: 0,
   );
 
-  final List<String> _categories = [
-    'Semua',
-    'Makanan',
-    'Minuman',
-    'Kebersihan',
-    'Dapur',
-  ];
-
   final TextEditingController _customerNameController = TextEditingController(
     text: "Pelanggan Umum",
   );
 
-  // --- LOGIC PEMBAYARAN INSTAN (OPTIMISTIC UI) ---
+  // --- LOGIC PEMBAYARAN ---
   Future<void> _processPayment(int totalItems, double totalPrice) async {
     final cartSnapshot = Map<String, Map<String, dynamic>>.from(_cart);
     final customerNameSnapshot = _customerNameController.text.trim();
@@ -90,15 +81,11 @@ class _KasirScreenState extends State<KasirScreen> {
     }
   }
 
-  // --- LOGIC: TAMBAH KE KERANJANG (VALIDASI STOK) ---
+  // --- LOGIC KERANJANG ---
   void _addToCart(String productId, Map<String, dynamic> productData) {
-    // Ambil data stok (pastikan tipe data aman)
     final stock = (productData['stock'] as num?)?.toInt() ?? 0;
-
-    // Cek jumlah yang sudah ada di keranjang
     final currentQtyInCart = _cart[productId]?['qty'] as int? ?? 0;
 
-    // 1. CEK APAKAH STOK HABIS ATAU SUDAH MENTOK
     if (stock <= 0) {
       _showErrorSnack("Stok barang habis!");
       return;
@@ -117,23 +104,21 @@ class _KasirScreenState extends State<KasirScreen> {
           'name': productData['name'],
           'price': productData['price'],
           'qty': 1,
-          'maxStock': stock, // SIMPAN MAX STOCK KE KERANJANG
+          'maxStock': stock,
         };
       }
     });
   }
 
-  // --- LOGIC: UPDATE QTY DI KERANJANG (VALIDASI STOK) ---
   void _updateQty(String productId, int delta) {
     if (!_cart.containsKey(productId)) return;
 
     final currentQty = _cart[productId]!['qty'] as int;
-    final maxStock = _cart[productId]!['maxStock'] as int; // Ambil max stok
+    final maxStock = _cart[productId]!['maxStock'] as int;
 
-    // Jika mau nambah (delta > 0), cek dulu stoknya
     if (delta > 0 && currentQty >= maxStock) {
       _showErrorSnack("Mencapai batas stok tersedia ($maxStock)");
-      return; // Stop, jangan ditambah
+      return;
     }
 
     setState(() {
@@ -158,7 +143,6 @@ class _KasirScreenState extends State<KasirScreen> {
     );
   }
 
-  // --- LOGIC TAMBAHAN ---
   Future<void> _searchByBarcode(String barcode) async {
     try {
       final productDoc = await _databaseService.getProductByBarcode(barcode);
@@ -228,34 +212,68 @@ class _KasirScreenState extends State<KasirScreen> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: _categories.map((cat) {
-                          final isSelected = _selectedCategory == cat;
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: ChoiceChip(
-                              label: Text(cat),
-                              selected: isSelected,
-                              selectedColor: AppColors.primary,
-                              labelStyle: TextStyle(
-                                color: isSelected
-                                    ? Colors.white
-                                    : AppColors.textSecondary,
-                              ),
-                              backgroundColor: AppColors.surface,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
-                                side: BorderSide.none,
-                              ),
-                              onSelected: (val) =>
-                                  setState(() => _selectedCategory = cat),
-                            ),
-                          );
-                        }).toList(),
-                      ),
+
+                    // --- KATEGORI DINAMIS + DEFAULT ---
+                    StreamBuilder<QuerySnapshot>(
+                      stream: _databaseService.getCategories(),
+                      builder: (context, snapshot) {
+                        // 1. Inisialisasi dengan Kategori Default
+                        List<String> categories = [
+                          'Semua',
+                          'Makanan',
+                          'Minuman',
+                          'Dapur',
+                          'Kebersihan',
+                        ];
+
+                        // 2. Tambahkan kategori custom dari Firebase (jika belum ada di default)
+                        if (snapshot.hasData) {
+                          for (var doc in snapshot.data!.docs) {
+                            final data = doc.data() as Map<String, dynamic>;
+                            final catName = data['name'] as String?;
+                            if (catName != null &&
+                                !categories.contains(catName)) {
+                              categories.add(catName);
+                            }
+                          }
+                        }
+
+                        // 3. Pastikan kategori yang sedang dipilih tetap ada di list
+                        if (!categories.contains(_selectedCategory)) {
+                          categories.add(_selectedCategory);
+                        }
+
+                        return SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: categories.map((cat) {
+                              final isSelected = _selectedCategory == cat;
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: ChoiceChip(
+                                  label: Text(cat),
+                                  selected: isSelected,
+                                  selectedColor: AppColors.primary,
+                                  labelStyle: TextStyle(
+                                    color: isSelected
+                                        ? Colors.white
+                                        : AppColors.textSecondary,
+                                  ),
+                                  backgroundColor: AppColors.surface,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
+                                    side: BorderSide.none,
+                                  ),
+                                  onSelected: (val) =>
+                                      setState(() => _selectedCategory = cat),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        );
+                      },
                     ),
+                    // -----------------------------------------
                   ],
                 ),
               ),
@@ -286,12 +304,16 @@ class _KasirScreenState extends State<KasirScreen> {
                       final name = (data['name'] as String? ?? '')
                           .toLowerCase();
                       final category = data['category'] as String? ?? '';
+
                       final matchesSearch = name.contains(
                         _searchQuery.toLowerCase(),
                       );
+
+                      // Filter Kategori (Logic)
                       final matchesCategory =
                           _selectedCategory == 'Semua' ||
                           category == _selectedCategory;
+
                       return matchesSearch && matchesCategory;
                     }).toList();
 
@@ -351,7 +373,7 @@ class _KasirScreenState extends State<KasirScreen> {
     return GestureDetector(
       onTap: isOutOfStock ? null : () => _addToCart(productId, productData),
       child: Opacity(
-        opacity: isOutOfStock ? 0.5 : 1.0, // Redupkan jika stok habis
+        opacity: isOutOfStock ? 0.5 : 1.0,
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -491,7 +513,7 @@ class _KasirScreenState extends State<KasirScreen> {
                     _cart[key]!['name'],
                     _cart[key]!['price'],
                     _cart[key]!['qty'],
-                    _cart[key]!['maxStock'] ?? 9999, // Pass Max Stock
+                    _cart[key]!['maxStock'] ?? 9999,
                   );
                 },
               ),
@@ -545,7 +567,7 @@ class _KasirScreenState extends State<KasirScreen> {
     String name,
     double price,
     int qty,
-    int maxStock, // Terima Max Stock
+    int maxStock,
   ) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -601,7 +623,7 @@ class _KasirScreenState extends State<KasirScreen> {
                 Icons.add,
                 () => _updateQty(productId, 1),
                 isAdd: true,
-                isDisabled: qty >= maxStock, // Disable jika mentok
+                isDisabled: qty >= maxStock,
               ),
             ],
           ),
@@ -750,10 +772,7 @@ class _KasirScreenState extends State<KasirScreen> {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    // 1. TUTUP MODAL LANGSUNG (Tanpa Loading)
                     Navigator.pop(context);
-
-                    // 2. JALANKAN LOGIKA (UI Reset + Background Process)
                     _processPayment(totalItems, totalPrice);
                   },
                   style: ElevatedButton.styleFrom(

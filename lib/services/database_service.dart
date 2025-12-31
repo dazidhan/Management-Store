@@ -13,6 +13,7 @@ class DatabaseService {
     return _firestore.collection('users').doc(uid);
   }
 
+  // ... (Store Management tetap sama) ...
   DocumentReference? get _storeProfileDoc =>
       _userDoc?.collection('store_profile').doc('profile');
   Stream<DocumentSnapshot>? getStoreProfile() => _storeProfileDoc?.snapshots();
@@ -29,14 +30,39 @@ class DatabaseService {
     }, SetOptions(merge: true));
   }
 
+  // ========== KATEGORI (CUSTOM) - FITUR BARU ==========
+  CollectionReference? get _categoriesCollection =>
+      _userDoc?.collection('categories');
+
+  // Ambil data kategori (Realtime)
+  Stream<QuerySnapshot>? getCategories() {
+    return _categoriesCollection?.orderBy('name').snapshots();
+  }
+
+  // Tambah Kategori Baru
+  Future<void> addCategory(String categoryName) async {
+    if (_categoriesCollection == null) throw 'User tidak terautentikasi';
+
+    // Cek duplikat sederhana (opsional, tapi bagus untuk UX)
+    final existing = await _categoriesCollection!
+        .where('name', isEqualTo: categoryName)
+        .limit(1)
+        .get();
+
+    if (existing.docs.isEmpty) {
+      await _categoriesCollection!.add({
+        'name': categoryName,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
+  }
+
+  // ... (Stock History tetap sama) ...
   CollectionReference? get _stockHistoryCollection =>
       _userDoc?.collection('stock_history');
-
-  Stream<QuerySnapshot>? getStockHistory() {
-    return _stockHistoryCollection
-        ?.orderBy('createdAt', descending: true)
-        .snapshots();
-  }
+  Stream<QuerySnapshot>? getStockHistory() => _stockHistoryCollection
+      ?.orderBy('createdAt', descending: true)
+      .snapshots();
 
   Future<void> _logStock({
     required String productId,
@@ -48,7 +74,6 @@ class DatabaseService {
   }) async {
     final historyCollection = _stockHistoryCollection;
     if (historyCollection == null) return;
-
     final data = {
       'productId': productId,
       'name': name,
@@ -57,7 +82,6 @@ class DatabaseService {
       'reason': reason,
       'createdAt': FieldValue.serverTimestamp(),
     };
-
     if (batch != null) {
       batch.set(historyCollection.doc(), data);
     } else {
@@ -65,12 +89,13 @@ class DatabaseService {
     }
   }
 
+  // ... (Products tetap sama) ...
   CollectionReference? get _productsCollection =>
       _userDoc?.collection('products');
-
   Stream<QuerySnapshot>? getProducts() =>
       _productsCollection?.orderBy('name').snapshots();
-
+  Future<DocumentSnapshot?> getProduct(String productId) async =>
+      await _productsCollection?.doc(productId).get();
   Future<DocumentSnapshot?> getProductByBarcode(String barcode) async {
     final query = await _productsCollection
         ?.where('barcode', isEqualTo: barcode)
@@ -81,15 +106,12 @@ class DatabaseService {
 
   Future<String> addProduct(Map<String, dynamic> productData) async {
     if (_productsCollection == null) throw 'User tidak terautentikasi';
-
     final docRef = await _productsCollection!.add({
       ...productData,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
-
     final initialStock = (productData['stock'] as num?)?.toInt() ?? 0;
-
     if (initialStock > 0) {
       await _logStock(
         productId: docRef.id,
@@ -107,10 +129,8 @@ class DatabaseService {
     Map<String, dynamic> newData,
   ) async {
     if (_productsCollection == null) throw 'User tidak terautentikasi';
-
     final oldDoc = await _productsCollection!.doc(productId).get();
     final oldData = oldDoc.data() as Map<String, dynamic>;
-
     final oldStock = (oldData['stock'] as num?)?.toInt() ?? 0;
     final newStock = (newData['stock'] as num?)?.toInt() ?? 0;
 
@@ -134,9 +154,9 @@ class DatabaseService {
   Future<void> deleteProduct(String productId) async =>
       await _productsCollection!.doc(productId).delete();
 
+  // ... (Transactions tetap sama) ...
   CollectionReference? get _transactionsCollection =>
       _userDoc?.collection('transactions');
-
   Stream<QuerySnapshot>? getTransactions() => _transactionsCollection
       ?.orderBy('createdAt', descending: true)
       .snapshots();
@@ -148,7 +168,6 @@ class DatabaseService {
     required int totalItems,
   }) async {
     if (_transactionsCollection == null) throw 'User tidak terautentikasi';
-
     final batch = _firestore.batch();
     final transactionRef = _transactionsCollection!.doc();
     final itemList = <Map<String, dynamic>>[];
@@ -157,20 +176,17 @@ class DatabaseService {
       final productId = entry.key;
       final itemData = entry.value;
       final qtyBuy = (itemData['qty'] as num).toInt();
-
       itemList.add({
         'productId': productId,
         'name': itemData['name'],
         'price': itemData['price'],
         'qty': qtyBuy,
       });
-
       final productRef = _productsCollection!.doc(productId);
       batch.update(productRef, {
         'stock': FieldValue.increment(-qtyBuy),
         'updatedAt': FieldValue.serverTimestamp(),
       });
-
       final historyRef = _stockHistoryCollection!.doc();
       batch.set(historyRef, {
         'productId': productId,
@@ -191,10 +207,10 @@ class DatabaseService {
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
-
     await batch.commit();
   }
 
+  // ... (Employees tetap sama) ...
   CollectionReference? get _employeesCollection =>
       _userDoc?.collection('employees');
   Stream<QuerySnapshot>? getEmployees() =>

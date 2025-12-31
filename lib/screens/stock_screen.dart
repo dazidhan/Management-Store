@@ -70,7 +70,7 @@ class _StockScreenState extends State<StockScreen> {
                       ],
                     ),
                     InkWell(
-                      // PANGGIL FORM PRODUK (Mode Tambah Manual)
+                      // PANGGIL FORM PRODUK
                       onTap: () => showModalBottomSheet(
                         context: context,
                         isScrollControlled: true,
@@ -228,7 +228,6 @@ class _StockScreenState extends State<StockScreen> {
     final isLowStock = stock <= minStock;
 
     return GestureDetector(
-      // PANGGIL FORM PRODUK (Mode Edit)
       onTap: () => showModalBottomSheet(
         context: context,
         isScrollControlled: true,
@@ -333,17 +332,19 @@ class _StockScreenState extends State<StockScreen> {
   String _getCategoryIcon(String category) {
     if (category == 'Makanan') return '🍜';
     if (category == 'Minuman') return '🥤';
+    if (category == 'Dapur') return '🍳';
+    if (category == 'Kebersihan') return '🧹';
     return '📦';
   }
 }
 
 // =========================================================
-// WIDGET BARU: FORM PRODUK (REUSABLE)
+// WIDGET: FORM PRODUK (DENGAN KATEGORI CUSTOM)
 // =========================================================
 class ProductFormSheet extends StatefulWidget {
   final String? productId;
   final Map<String, dynamic>? productData;
-  final String? initialBarcode; // Parameter baru untuk Shortcut Dashboard
+  final String? initialBarcode;
 
   const ProductFormSheet({
     super.key,
@@ -366,12 +367,11 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
   final _stockController = TextEditingController();
   final _minStockController = TextEditingController(text: '10');
   final _barcodeController = TextEditingController();
-  String _selectedCategory = 'Makanan';
+  String _selectedCategory = 'Makanan'; // Default awal
 
   @override
   void initState() {
     super.initState();
-    // 1. Jika Mode Edit
     if (widget.productData != null) {
       final data = widget.productData!;
       _skuController.text = data['sku'] ?? '';
@@ -381,13 +381,49 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
       _minStockController.text = (data['minStock'] as num?)?.toString() ?? '10';
       _barcodeController.text = data['barcode'] ?? '';
       _selectedCategory = data['category'] ?? 'Makanan';
-    }
-    // 2. Jika Mode Tambah Baru via Dashboard (Barcode sudah ada)
-    else if (widget.initialBarcode != null) {
+    } else if (widget.initialBarcode != null) {
       _barcodeController.text = widget.initialBarcode!;
-      // Opsional: Isi SKU otomatis dengan barcode agar cepat, user bisa ubah nanti
       _skuController.text = widget.initialBarcode!;
     }
+  }
+
+  // Helper untuk menambah kategori baru
+  void _showAddCategoryDialog() {
+    final catController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Tambah Kategori Baru"),
+        content: TextField(
+          controller: catController,
+          decoration: const InputDecoration(
+            hintText: "Contoh: Elektronik, Obat, dll",
+            filled: true,
+          ),
+          textCapitalization: TextCapitalization.sentences,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Batal"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+            onPressed: () async {
+              final newCat = catController.text.trim();
+              if (newCat.isNotEmpty) {
+                // Simpan ke Firebase
+                await _databaseService.addCategory(newCat);
+                // Set sebagai selected
+                setState(() => _selectedCategory = newCat);
+                if (mounted) Navigator.pop(context);
+              }
+            },
+            child: const Text("Tambah", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -431,42 +467,93 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
                   Expanded(child: _buildInput("SKU", _skuController)),
                   const SizedBox(width: 12),
                   Expanded(
+                    // --- KATEGORI DINAMIS ---
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          "Kategori",
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
-                          ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              "Kategori",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                            // Tombol Tambah Kategori Kecil
+                            InkWell(
+                              onTap: _showAddCategoryDialog,
+                              child: const Padding(
+                                padding: EdgeInsets.only(bottom: 2.0),
+                                child: Text(
+                                  "+ Tambah",
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 4),
-                        DropdownButtonFormField<String>(
-                          value: _selectedCategory,
-                          dropdownColor: AppColors.surface,
-                          decoration: InputDecoration(
-                            filled: true,
-                            fillColor: AppColors.background,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide.none,
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 14,
-                            ),
-                          ),
-                          items: ['Makanan', 'Minuman', 'Dapur', 'Kebersihan']
-                              .map(
-                                (val) => DropdownMenuItem(
-                                  value: val,
-                                  child: Text(val),
+                        // StreamBuilder untuk membaca kategori dari Firebase
+                        StreamBuilder<QuerySnapshot>(
+                          stream: _databaseService.getCategories(),
+                          builder: (context, snapshot) {
+                            // Daftar default
+                            Set<String> categories = {
+                              'Makanan',
+                              'Minuman',
+                              'Dapur',
+                              'Kebersihan',
+                            };
+
+                            // Tambahkan dari Firebase jika ada
+                            if (snapshot.hasData) {
+                              for (var doc in snapshot.data!.docs) {
+                                final data = doc.data() as Map<String, dynamic>;
+                                if (data['name'] != null) {
+                                  categories.add(data['name']);
+                                }
+                              }
+                            }
+
+                            // Pastikan kategori yang sedang dipilih ada di list (jika data lama)
+                            categories.add(_selectedCategory);
+
+                            return DropdownButtonFormField<String>(
+                              value: _selectedCategory,
+                              isExpanded: true, // Agar teks panjang tidak error
+                              dropdownColor: AppColors.surface,
+                              decoration: InputDecoration(
+                                filled: true,
+                                fillColor: AppColors.background,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none,
                                 ),
-                              )
-                              .toList(),
-                          onChanged: (val) =>
-                              setState(() => _selectedCategory = val!),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 14,
+                                ),
+                              ),
+                              items: categories.map((val) {
+                                return DropdownMenuItem(
+                                  value: val,
+                                  child: Text(
+                                    val,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                );
+                              }).toList(),
+                              onChanged: (val) =>
+                                  setState(() => _selectedCategory = val!),
+                            );
+                          },
                         ),
                       ],
                     ),
