@@ -643,13 +643,14 @@ class _KaryawanScreenState extends State<KaryawanScreen> {
         }
         if (mounted) Navigator.pop(context);
       } catch (e) {
-        if (mounted)
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(e.toString()),
               backgroundColor: AppColors.warning,
             ),
           );
+        }
       } finally {
         if (mounted) setState(() => _isLoading = false);
       }
@@ -822,7 +823,7 @@ class _KaryawanScreenState extends State<KaryawanScreen> {
         ),
         const SizedBox(height: 6),
         DropdownButtonFormField<String>(
-          value: value,
+          initialValue: value,
           dropdownColor: AppColors.surface,
           style: const TextStyle(color: AppColors.textPrimary),
           decoration: InputDecoration(

@@ -45,12 +45,10 @@ ThemeData getAppTheme() {
       primary: AppColors.primary,
       secondary: AppColors.secondary,
       surface: AppColors.surface,
-      background: AppColors.background,
       error: AppColors.warning,
       onPrimary: Colors.white,
       onSecondary: Colors.white,
       onSurface: AppColors.textPrimary,
-      onBackground: AppColors.textPrimary,
       onError: Colors.white,
     ),
 
