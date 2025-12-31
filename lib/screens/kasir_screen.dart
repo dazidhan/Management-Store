@@ -17,6 +17,8 @@ class _KasirScreenState extends State<KasirScreen> {
   String _selectedCategory = 'Semua';
   final _databaseService = DatabaseService();
 
+  // State Keranjang Belanja
+  // Structure: { productId: { 'name': String, 'price': double, 'qty': int, 'maxStock': int } }
   final Map<String, Map<String, dynamic>> _cart = {};
 
   final _currencyFormat = NumberFormat.currency(
@@ -37,6 +39,7 @@ class _KasirScreenState extends State<KasirScreen> {
     text: "Pelanggan Umum",
   );
 
+  // --- LOGIC PEMBAYARAN INSTAN (OPTIMISTIC UI) ---
   Future<void> _processPayment(int totalItems, double totalPrice) async {
     final cartSnapshot = Map<String, Map<String, dynamic>>.from(_cart);
     final customerNameSnapshot = _customerNameController.text.trim();
@@ -87,6 +90,91 @@ class _KasirScreenState extends State<KasirScreen> {
     }
   }
 
+  // --- LOGIC: TAMBAH KE KERANJANG (VALIDASI STOK) ---
+  void _addToCart(String productId, Map<String, dynamic> productData) {
+    // Ambil data stok (pastikan tipe data aman)
+    final stock = (productData['stock'] as num?)?.toInt() ?? 0;
+
+    // Cek jumlah yang sudah ada di keranjang
+    final currentQtyInCart = _cart[productId]?['qty'] as int? ?? 0;
+
+    // 1. CEK APAKAH STOK HABIS ATAU SUDAH MENTOK
+    if (stock <= 0) {
+      _showErrorSnack("Stok barang habis!");
+      return;
+    }
+
+    if (currentQtyInCart >= stock) {
+      _showErrorSnack("Mencapai batas stok tersedia ($stock)");
+      return;
+    }
+
+    setState(() {
+      if (_cart.containsKey(productId)) {
+        _cart[productId]!['qty'] = currentQtyInCart + 1;
+      } else {
+        _cart[productId] = {
+          'name': productData['name'],
+          'price': productData['price'],
+          'qty': 1,
+          'maxStock': stock, // SIMPAN MAX STOCK KE KERANJANG
+        };
+      }
+    });
+  }
+
+  // --- LOGIC: UPDATE QTY DI KERANJANG (VALIDASI STOK) ---
+  void _updateQty(String productId, int delta) {
+    if (!_cart.containsKey(productId)) return;
+
+    final currentQty = _cart[productId]!['qty'] as int;
+    final maxStock = _cart[productId]!['maxStock'] as int; // Ambil max stok
+
+    // Jika mau nambah (delta > 0), cek dulu stoknya
+    if (delta > 0 && currentQty >= maxStock) {
+      _showErrorSnack("Mencapai batas stok tersedia ($maxStock)");
+      return; // Stop, jangan ditambah
+    }
+
+    setState(() {
+      int newQty = currentQty + delta;
+      if (newQty <= 0) {
+        _cart.remove(productId);
+      } else {
+        _cart[productId]!['qty'] = newQty;
+      }
+    });
+  }
+
+  void _showErrorSnack(String message) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppColors.warning,
+        duration: const Duration(milliseconds: 1000),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  // --- LOGIC TAMBAHAN ---
+  Future<void> _searchByBarcode(String barcode) async {
+    try {
+      final productDoc = await _databaseService.getProductByBarcode(barcode);
+      if (productDoc != null && productDoc.exists) {
+        final productData = productDoc.data() as Map<String, dynamic>;
+        _addToCart(productDoc.id, productData);
+      } else {
+        if (mounted) {
+          _showErrorSnack('Produk tidak ditemukan');
+        }
+      }
+    } catch (e) {
+      // Handle error
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -94,6 +182,7 @@ class _KasirScreenState extends State<KasirScreen> {
         children: [
           Column(
             children: [
+              // 1. Search & Filter
               Container(
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -171,6 +260,7 @@ class _KasirScreenState extends State<KasirScreen> {
                 ),
               ),
 
+              // 2. Product Grid (Realtime)
               Expanded(
                 child: StreamBuilder<QuerySnapshot>(
                   stream: _databaseService.getProducts(),
@@ -236,168 +326,124 @@ class _KasirScreenState extends State<KasirScreen> {
             ],
           ),
 
+          // 3. Floating Cart
           if (_cart.isNotEmpty) _buildCartSummary(),
         ],
       ),
     );
   }
 
-  Future<void> _searchByBarcode(String barcode) async {
-    try {
-      final productDoc = await _databaseService.getProductByBarcode(barcode);
-      if (productDoc != null && productDoc.exists) {
-        final productData = productDoc.data() as Map<String, dynamic>;
-        _addToCart(productDoc.id, productData);
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Produk tidak ditemukan'),
-              backgroundColor: AppColors.warning,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      // Handle error
-    }
-  }
-
-  void _addToCart(String productId, Map<String, dynamic> productData) {
-    final stock = (productData['stock'] as int?) ?? 0;
-    final currentQty = _cart[productId]?['qty'] ?? 0;
-
-    if (currentQty >= stock) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Stok Habis / Maksimal!"),
-          duration: Duration(milliseconds: 500),
-        ),
-      );
-      return;
-    }
-
-    setState(() {
-      if (_cart.containsKey(productId)) {
-        _cart[productId]!['qty'] = (_cart[productId]!['qty'] as int) + 1;
-      } else {
-        _cart[productId] = {
-          'name': productData['name'],
-          'price': productData['price'],
-          'qty': 1,
-        };
-      }
-    });
-  }
-
-  void _updateQty(String productId, int delta) {
-    setState(() {
-      if (_cart.containsKey(productId)) {
-        int newQty = (_cart[productId]!['qty'] as int) + delta;
-        if (newQty <= 0) {
-          _cart.remove(productId);
-        } else {
-          _cart[productId]!['qty'] = newQty;
-        }
-      }
-    });
-  }
+  // --- WIDGETS ---
 
   Widget _buildProductCard(String productId, Map<String, dynamic> productData) {
     final name = productData['name'] as String? ?? '';
     final price = (productData['price'] as num?)?.toDouble() ?? 0.0;
-    final stock = (productData['stock'] as int?) ?? 0;
-    final qtyInCart = _cart[productId]?['qty'] ?? 0;
+
+    // Pastikan stok dibaca sebagai int
+    final stock = (productData['stock'] as num?)?.toInt() ?? 0;
+
+    final qtyInCart = _cart[productId]?['qty'] as int? ?? 0;
     final isSelected = qtyInCart > 0;
 
+    // Cek visual jika stok habis
+    final isOutOfStock = stock <= 0;
+
     return GestureDetector(
-      onTap: () => _addToCart(productId, productData),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.border,
-            width: isSelected ? 2 : 1,
-          ),
-          boxShadow: const [
-            BoxShadow(
-              color: Colors.black26,
-              blurRadius: 4,
-              offset: Offset(0, 4),
+      onTap: isOutOfStock ? null : () => _addToCart(productId, productData),
+      child: Opacity(
+        opacity: isOutOfStock ? 0.5 : 1.0, // Redupkan jika stok habis
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isSelected ? AppColors.primary : AppColors.border,
+              width: isSelected ? 2 : 1,
             ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: AppColors.background,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Center(
-                    child: Text("📦", style: TextStyle(fontSize: 20)),
-                  ),
-                ),
-                if (isSelected)
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 4,
+                offset: Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
+                    width: 42,
+                    height: 42,
                     decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(8),
+                      color: AppColors.background,
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text(
-                      "${qtyInCart}x",
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                    child: const Center(
+                      child: Text("📦", style: TextStyle(fontSize: 20)),
+                    ),
+                  ),
+                  if (isSelected)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        "${qtyInCart}x",
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
-                  ),
-              ],
-            ),
-            const Spacer(),
-            Text(
-              name,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-                color: AppColors.textPrimary,
+                ],
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              "Stok: $stock",
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 12,
+              const Spacer(),
+              Text(
+                name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: AppColors.textPrimary,
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _currencyFormat.format(price),
-              style: const TextStyle(
-                color: AppColors.primary,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
+              const SizedBox(height: 4),
+              Text(
+                isOutOfStock ? "Stok Habis" : "Stok: $stock",
+                style: TextStyle(
+                  color: isOutOfStock
+                      ? AppColors.warning
+                      : AppColors.textSecondary,
+                  fontSize: 12,
+                  fontWeight: isOutOfStock
+                      ? FontWeight.bold
+                      : FontWeight.normal,
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 8),
+              Text(
+                _currencyFormat.format(price),
+                style: const TextStyle(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -445,6 +491,7 @@ class _KasirScreenState extends State<KasirScreen> {
                     _cart[key]!['name'],
                     _cart[key]!['price'],
                     _cart[key]!['qty'],
+                    _cart[key]!['maxStock'] ?? 9999, // Pass Max Stock
                   );
                 },
               ),
@@ -498,6 +545,7 @@ class _KasirScreenState extends State<KasirScreen> {
     String name,
     double price,
     int qty,
+    int maxStock, // Terima Max Stock
   ) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -553,6 +601,7 @@ class _KasirScreenState extends State<KasirScreen> {
                 Icons.add,
                 () => _updateQty(productId, 1),
                 isAdd: true,
+                isDisabled: qty >= maxStock, // Disable jika mentok
               ),
             ],
           ),
@@ -561,14 +610,21 @@ class _KasirScreenState extends State<KasirScreen> {
     );
   }
 
-  Widget _buildQtyBtn(IconData icon, VoidCallback onTap, {bool isAdd = false}) {
+  Widget _buildQtyBtn(
+    IconData icon,
+    VoidCallback onTap, {
+    bool isAdd = false,
+    bool isDisabled = false,
+  }) {
     return InkWell(
-      onTap: onTap,
+      onTap: isDisabled ? null : onTap,
       child: Container(
         width: 32,
         height: 36,
         decoration: BoxDecoration(
-          color: isAdd ? AppColors.primary : Colors.transparent,
+          color: isDisabled
+              ? Colors.grey.shade300
+              : (isAdd ? AppColors.primary : Colors.transparent),
           borderRadius: BorderRadius.horizontal(
             left: isAdd ? Radius.zero : const Radius.circular(7),
             right: isAdd ? const Radius.circular(7) : Radius.zero,
@@ -577,7 +633,9 @@ class _KasirScreenState extends State<KasirScreen> {
         child: Icon(
           icon,
           size: 16,
-          color: isAdd ? Colors.white : AppColors.textSecondary,
+          color: isDisabled
+              ? Colors.white
+              : (isAdd ? Colors.white : AppColors.textSecondary),
         ),
       ),
     );
@@ -692,8 +750,10 @@ class _KasirScreenState extends State<KasirScreen> {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
+                    // 1. TUTUP MODAL LANGSUNG (Tanpa Loading)
                     Navigator.pop(context);
 
+                    // 2. JALANKAN LOGIKA (UI Reset + Background Process)
                     _processPayment(totalItems, totalPrice);
                   },
                   style: ElevatedButton.styleFrom(
