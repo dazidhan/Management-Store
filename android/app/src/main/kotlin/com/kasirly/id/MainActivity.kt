@@ -1,4 +1,4 @@
-package com.example.project_coba
+package com.kasirly.id
 
 import io.flutter.embedding.android.FlutterActivity
 
