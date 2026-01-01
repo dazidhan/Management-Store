@@ -451,8 +451,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           StreamBuilder<QuerySnapshot>(
             stream: _databaseService.getTransactions(),
             builder: (context, snapshot) {
-              if (!snapshot.hasData || snapshot.data!.docs.isEmpty)
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                 return const SizedBox();
+              }
               return ListView.separated(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
