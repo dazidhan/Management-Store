@@ -1,22 +1,23 @@
 plugins {
     id("com.android.application")
     id("kotlin-android")
+    // Pastikan plugin Flutter ini sesuai dengan versi Flutter kamu (biasanya sudah default)
     id("dev.flutter.flutter-gradle-plugin")
+    // Plugin Google Services (hanya jika pakai Firebase)
     id("com.google.gms.google-services")
 }
 
 import java.util.Properties
 import java.io.FileInputStream
 
+// Memuat file key.properties
 val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("key.properties")
 if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
 
-
 android {
-    // DISESUAIKAN: Namespace disamakan dengan Application ID
     namespace = "com.kasirly.id"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
@@ -31,16 +32,16 @@ android {
     }
 
     defaultConfig {
-        // ID Aplikasi Kasirly
         applicationId = "com.kasirly.id"
-        
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
+
     signingConfigs {
         create("release") {
+            // Mengambil data dari key.properties dengan aman
             keyAlias = keystoreProperties["keyAlias"] as String? ?: ""
             keyPassword = keystoreProperties["keyPassword"] as String? ?: ""
             storeFile = keystoreProperties["storeFile"]?.let { file(it) }
@@ -50,12 +51,13 @@ android {
 
     buildTypes {
         release {
-            // DISESUAIKAN: Menggunakan config release, bukan debug
             signingConfig = signingConfigs.getByName("release")
             
-            // Mengaktifkan shrinking resource untuk memperkecil ukuran APK (Opsional, tapi disarankan)
-            isMinifyEnabled = true
-            isShrinkResources = true
+            // SAYA UBAH KE FALSE AGAR AMAN SAAT DEMO
+            // Jika true, aplikasi bisa crash kalau konfigurasi ProGuard belum sempurna.
+            isMinifyEnabled = false
+            isShrinkResources = false
+            
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
