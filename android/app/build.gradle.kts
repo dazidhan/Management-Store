@@ -1,9 +1,7 @@
 plugins {
     id("com.android.application")
     id("kotlin-android")
-    // Pastikan plugin Flutter ini sesuai dengan versi Flutter kamu (biasanya sudah default)
     id("dev.flutter.flutter-gradle-plugin")
-    // Plugin Google Services (hanya jika pakai Firebase)
     id("com.google.gms.google-services")
 }
 
@@ -50,12 +48,10 @@ android {
     }
 
     buildTypes {
-<<<<<<< HEAD
         release {
             signingConfig = signingConfigs.getByName("release")
             
-            // SAYA UBAH KE FALSE AGAR AMAN SAAT DEMO
-            // Jika true, aplikasi bisa crash kalau konfigurasi ProGuard belum sempurna.
+            // Dibuat false agar aman saat demo (mencegah crash karena R8)
             isMinifyEnabled = false
             isShrinkResources = false
             
@@ -64,21 +60,7 @@ android {
                 "proguard-rules.pro"
             )
         }
-=======
-    release {
-        signingConfig = signingConfigs.getByName("release")
-        
-        // UBAH DUA BARIS INI JADI FALSE
-        isMinifyEnabled = false 
-        isShrinkResources = false 
-        
-        proguardFiles(
-            getDefaultProguardFile("proguard-android-optimize.txt"),
-            "proguard-rules.pro"
-        )
->>>>>>> ce082ac984111b7d734f78ba804c05a6f9193be9
     }
-}
 }
 
 flutter {
