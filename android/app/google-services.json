@@ -9,20 +9,49 @@
       "client_info": {
         "mobilesdk_app_id": "1:157347232332:android:4c9dc27238a7560c6112e9",
         "android_client_info": {
+          "package_name": "com.example.project_coba"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "157347232332-8fjklpbefnp0f372vna795vb2m71oqjc.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAALnCozixaEEF-FHe47x8PIvjBEhhv-vw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "157347232332-8fjklpbefnp0f372vna795vb2m71oqjc.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:157347232332:android:c9414acfb217222e6112e9",
+        "android_client_info": {
           "package_name": "com.kasirly.id"
         }
       },
       "oauth_client": [
         {
-          "client_id": "157347232332-9qns23iv4frqlrmp8hcl2k4t3tj791bc.apps.googleusercontent.com",
+          "client_id": "157347232332-2tdqmp5t3ubuskelg7abl3m63paajo84.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.kasirly.id",
-            "certificate_hash": "09137fd569619ad408e4824591bcd4cdb73f2a01"
+            "certificate_hash": "15e05f00c3566ad7732173238177431e3bf05402"
           }
         },
         {
-          "client_id": "157347232332-a0hqenosnnjig99mmu0rb4r8cn9p6hcf.apps.googleusercontent.com",
+          "client_id": "157347232332-31nemp5dqjvh29qutde4lsui939lam2u.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.kasirly.id",
@@ -30,7 +59,7 @@
           }
         },
         {
-          "client_id": "157347232332-dq5179nk7tdhungd6pfc045s8r3hsbjv.apps.googleusercontent.com",
+          "client_id": "157347232332-81ni1j07o5suob6003aj0os3jlkrtbsf.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.kasirly.id",
@@ -38,11 +67,11 @@
           }
         },
         {
-          "client_id": "157347232332-ho5jfi1p2ji1d09394eqeh02li1redh5.apps.googleusercontent.com",
+          "client_id": "157347232332-q48fj7nbjct5tietobpkbp0vgl3m9bp1.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.kasirly.id",
-            "certificate_hash": "15e05f00c3566ad7732173238177431e3bf05402"
+            "certificate_hash": "09137fd569619ad408e4824591bcd4cdb73f2a01"
           }
         },
         {
