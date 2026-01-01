@@ -67,6 +67,14 @@
           }
         },
         {
+          "client_id": "157347232332-luooh1f82u8moubu744sjuf0qiv8pbvt.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.kasirly.id",
+            "certificate_hash": "642df057e716ff887a138a3cbfcde73a7cfe0ea1"
+          }
+        },
+        {
           "client_id": "157347232332-q48fj7nbjct5tietobpkbp0vgl3m9bp1.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
