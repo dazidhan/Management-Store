@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "157347232332-9qns23iv4frqlrmp8hcl2k4t3tj791bc.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.kasirly.id",
+            "certificate_hash": "09137fd569619ad408e4824591bcd4cdb73f2a01"
+          }
+        },
+        {
           "client_id": "157347232332-a0hqenosnnjig99mmu0rb4r8cn9p6hcf.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
@@ -27,6 +35,14 @@
           "android_info": {
             "package_name": "com.kasirly.id",
             "certificate_hash": "471152153a36d91a1844dad33d6945ab8daff797"
+          }
+        },
+        {
+          "client_id": "157347232332-ho5jfi1p2ji1d09394eqeh02li1redh5.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.kasirly.id",
+            "certificate_hash": "15e05f00c3566ad7732173238177431e3bf05402"
           }
         },
         {

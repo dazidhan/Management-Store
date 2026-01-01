@@ -525,7 +525,7 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
                             categories.add(_selectedCategory);
 
                             return DropdownButtonFormField<String>(
-                              value: _selectedCategory,
+                              initialValue: _selectedCategory,
                               isExpanded: true, // Agar teks panjang tidak error
                               dropdownColor: AppColors.surface,
                               decoration: InputDecoration(

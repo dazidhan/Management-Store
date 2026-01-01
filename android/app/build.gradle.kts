@@ -49,19 +49,19 @@ android {
     }
 
     buildTypes {
-        release {
-            // DISESUAIKAN: Menggunakan config release, bukan debug
-            signingConfig = signingConfigs.getByName("release")
-            
-            // Mengaktifkan shrinking resource untuk memperkecil ukuran APK (Opsional, tapi disarankan)
-            isMinifyEnabled = true
-            isShrinkResources = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
-        }
+    release {
+        signingConfig = signingConfigs.getByName("release")
+        
+        // UBAH DUA BARIS INI JADI FALSE
+        isMinifyEnabled = false 
+        isShrinkResources = false 
+        
+        proguardFiles(
+            getDefaultProguardFile("proguard-android-optimize.txt"),
+            "proguard-rules.pro"
+        )
     }
+}
 }
 
 flutter {
