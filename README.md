@@ -36,7 +36,7 @@ Aplikasi Kasirly saat ini dalam tahap finalisasi dan akan segera tersedia untuk 
     <img alt='Get it on Google Play' src='https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png' height='80'/>
 </a>
 
-*(Tautan akan aktif setelah aplikasi dipublikasikan)*
+*([Link google play](https://play.google.com/store/apps/details?id=com.kasirly.id))*
 
 ---
 
@@ -44,7 +44,7 @@ Aplikasi Kasirly saat ini dalam tahap finalisasi dan akan segera tersedia untuk 
 **Kasirly** adalah aplikasi *Store Management System* berbasis mobile yang dirancang sebagai solusi *All-in-One* untuk operasional toko. Aplikasi ini membantu pemilik toko memantau arus barang secara *realtime*, mencegah selisih stok, dan mempermudah administrasi karyawan dalam satu platform terintegrasi.
 
 > **Lihat Presentasi Lengkap (Pitch Deck):**
-> 🔗 **[MASUKKAN LINK PITCH DECK DISINI]**
+> 🔗 **[[LINK PITCH DECK DISINI](https://docs.google.com/document/d/1dHCs9gfkxtBGxNOdK3kIggkIUtL9S0yra-IUgkF0qGU/edit?tab=t.0)]**
 
 ---
 
