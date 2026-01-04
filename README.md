@@ -105,13 +105,12 @@ Untuk memastikan data siap digunakan user, kami menerapkan:
 
 ---
 
-# 4. Data Visualization (Screenshots)
-Berikut adalah antarmuka aplikasi Kasirly yang telah dikembangkan:
+## 4. Data Visualization (Screenshots)
 
-| **Dashboard** | **Stok** | **Manajemen Karyawan** | **Transaksi (POS)** |
-| assets/images/Dashboard.jpg | :---: | :---: | :---:
-| <img src="assets/images/Dashboard-screen.jpeg" width="200"/> | <img src="assets/images/Stok-screen.jpeg" width="200"/> | <img src="assets/images/Karyawan-screen.jpeg" width="200"/> | <img src="assets/images/Kasir-screen.jpeg" width="200"/> |
-| *Monitoring Toko* | *Stok Produk* | *Database Pegawai* | *Kasir* |
+| **Dashboard** | **Konfirmasi Pembayaran** | **Manajemen Stock Barang** | **Tim Karyawan** |
+|:-------------:|:-------------------------:|:---------------------------:|:---------------:|
+| <img src="assets/images/Dashboard.jpg" width="200"/> | <img src="assets/images/Konfirmasi Pembayaran.jpg" width="200"/> | <img src="assets/images/Manajemen Stock Barang.jpg" width="200"/> | <img src="assets/images/Tim Karyawan.jpg" width="200"/> |
+| *Dashboard Utama* | *Konfirmasi Transaksi* | *Manajemen Stok* | *Data Karyawan* |
 
 ---
 
