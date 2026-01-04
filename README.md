@@ -9,8 +9,8 @@
 
 <div align='center'>
 <img src="assets/images/Aldy.png" width="100" style="border-radius:50%"/>
-<img src="assets/images/Andi.png" width="100" style="border-radius:50%"/>
-<img src="assets/images/Dhaffa.png" width="100" style="border-radius:50%"/>
+<img src="assets/images/Andy.png" width="100" style="border-radius:50%"/>
+<img src="assets/images/Dapoy.png" width="100" style="border-radius:50%"/>
 <img src="assets/images/Dimas.png" width="100" style="border-radius:50%"/>
 
 <br>
