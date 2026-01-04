@@ -55,9 +55,9 @@ Presentasi lengkap mengenai latar belakang, fitur utama, arsitektur sistem, dan 
 ### 📝 Artikel Medium
 Dokumentasi dan cerita pengembangan aplikasi Kasirly juga tersedia dalam bentuk artikel di Medium:
 
-🔗 **[Baca Artikel Kasirly di Medium]([LINK_ARTIKEL_MEDIUM_DI_SINI](https://medium.com/@aldypermana242/kasirly-empowering-micro-business-with-data-driven-decisions-899eef08c527?source=friends_link&sk=eb7d48125521bf97bd7550a960458a93))**
+🔗 **[Baca Artikel Kasirly di Medium](https://medium.com/@aldypermana242/kasirly-empowering-micro-business-with-data-driven-decisions-899eef08c527?source=friends_link&sk=eb7d48125521bf97bd7550a960458a93)**
 
-🔗 **[Baca Artikel Kasirly di Word]([LINK_ARTIKEL_MEDIUM_DI_SINI](https://docs.google.com/document/d/1dHCs9gfkxtBGxNOdK3kIggkIUtL9S0yra-IUgkF0qGU/edit?tab=t.0))**
+🔗 **[Baca Artikel Kasirly di Word](https://docs.google.com/document/d/1dHCs9gfkxtBGxNOdK3kIggkIUtL9S0yra-IUgkF0qGU/edit?tab=t.0)**
 
 ---
 
