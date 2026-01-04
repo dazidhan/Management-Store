@@ -53,11 +53,11 @@ Presentasi lengkap mengenai latar belakang, fitur utama, arsitektur sistem, dan 
 🔗 **[Lihat Pitch Deck Kasirly (PPT)](https://www.canva.com/design/DAG9EvG2d98/QUgwoHyumatYFjLKUZIwnw/edit)**
 
 ### 📝 Artikel Medium
-Dokumentasi dan cerita pengembangan aplikasi Kasirly juga tersedia dalam bentuk artikel di Medium:
+Dokumentasi dan cerita pengembangan aplikasi Kasirly juga tersedia dalam bentuk artikel di Medium Dan Docs:
 
 🔗 **[Baca Artikel Kasirly di Medium](https://medium.com/@aldypermana242/kasirly-empowering-micro-business-with-data-driven-decisions-899eef08c527?source=friends_link&sk=eb7d48125521bf97bd7550a960458a93)**
 
-🔗 **[Baca Artikel Kasirly di Word](https://docs.google.com/document/d/1dHCs9gfkxtBGxNOdK3kIggkIUtL9S0yra-IUgkF0qGU/edit?tab=t.0)**
+🔗 **[Baca Artikel Kasirly di Docs](https://docs.google.com/document/d/1dHCs9gfkxtBGxNOdK3kIggkIUtL9S0yra-IUgkF0qGU/edit?tab=t.0)**
 
 ---
 
