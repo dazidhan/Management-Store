@@ -109,7 +109,7 @@ Untuk memastikan data siap digunakan user, kami menerapkan:
 Berikut adalah antarmuka aplikasi Kasirly yang telah dikembangkan:
 
 | **Dashboard** | **Stok** | **Manajemen Karyawan** | **Transaksi (POS)** |
-| :assets/Dashboard.jpg: | :---: | :---: | :---:
+| :assets/images/Dashboard.jpg: | :---: | :---: | :---:
 | <img src="assets/images/Dashboard-screen.jpeg" width="200"/> | <img src="assets/images/Stok-screen.jpeg" width="200"/> | <img src="assets/images/Karyawan-screen.jpeg" width="200"/> | <img src="assets/images/Kasir-screen.jpeg" width="200"/> |
 | *Monitoring Toko* | *Stok Produk* | *Database Pegawai* | *Kasir* |
 
