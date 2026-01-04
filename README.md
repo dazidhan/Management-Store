@@ -29,22 +29,35 @@
 
 ---
 
-## 📲 Unduh Aplikasi (Coming Soon)
-Aplikasi Kasirly saat ini dalam tahap finalisasi dan akan segera tersedia untuk publik. Nantikan rilis resminya di Google Play Store!
+## 📲 Unduh Aplikasi
+Aplikasi **Kasirly** telah tersedia dan dapat diunduh melalui Google Play Store.  
+Silakan coba dan rasakan kemudahan mengelola toko dalam satu aplikasi terintegrasi.
 
-<a href='https://play.google.com/store/apps/details?id=com.kasirly.id'>
-    <img alt='Get it on Google Play' src='https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png' height='80'/>
+<a href="https://play.google.com/store/apps/details?id=com.kasirly.id">
+  <img alt="Get it on Google Play"
+       src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png"
+       height="80"/>
 </a>
 
-*([Link google play](https://play.google.com/store/apps/details?id=com.kasirly.id))*
+🔗 **[Lihat di Google Play Store](https://play.google.com/store/apps/details?id=com.kasirly.id&pcampaignid=web_share)**
 
 ---
 
-## 📄 Tentang & Pitch Deck
-**Kasirly** adalah aplikasi *Store Management System* berbasis mobile yang dirancang sebagai solusi *All-in-One* untuk operasional toko. Aplikasi ini membantu pemilik toko memantau arus barang secara *realtime*, mencegah selisih stok, dan mempermudah administrasi karyawan dalam satu platform terintegrasi.
+## 📄 Tentang Kasirly, Pitch Deck & Artikel
+**Kasirly** adalah aplikasi *Store Management System* berbasis mobile yang dirancang sebagai solusi **All-in-One** untuk operasional toko.  
+Aplikasi ini membantu pemilik usaha memantau arus barang secara *real-time*, mencegah selisih stok, mengelola transaksi kasir, serta mempermudah administrasi karyawan dalam satu platform terintegrasi.
 
-> **Lihat Presentasi Lengkap (Pitch Deck):**
-> 🔗 **[[LINK PITCH DECK DISINI](https://docs.google.com/document/d/1dHCs9gfkxtBGxNOdK3kIggkIUtL9S0yra-IUgkF0qGU/edit?tab=t.0)]**
+### 📊 Pitch Deck
+Presentasi lengkap mengenai latar belakang, fitur utama, arsitektur sistem, dan potensi pengembangan Kasirly dapat diakses melalui tautan berikut:
+
+🔗 **[Lihat Pitch Deck Kasirly (PPT)](https://www.canva.com/design/DAG9EvG2d98/QUgwoHyumatYFjLKUZIwnw/edit)**
+
+### 📝 Artikel Medium
+Dokumentasi dan cerita pengembangan aplikasi Kasirly juga tersedia dalam bentuk artikel di Medium:
+
+🔗 **[Baca Artikel Kasirly di Medium]([LINK_ARTIKEL_MEDIUM_DI_SINI](https://medium.com/@aldypermana242/kasirly-empowering-micro-business-with-data-driven-decisions-899eef08c527?source=friends_link&sk=eb7d48125521bf97bd7550a960458a93))**
+
+🔗 **[Baca Artikel Kasirly di Word]([LINK_ARTIKEL_MEDIUM_DI_SINI](https://docs.google.com/document/d/1dHCs9gfkxtBGxNOdK3kIggkIUtL9S0yra-IUgkF0qGU/edit?tab=t.0))**
 
 ---
 
